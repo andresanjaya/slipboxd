@@ -1,0 +1,13 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<rss version="2.0" xmlns:letterboxd="https://letterboxd.com" xmlns:dc="http://purl.org/dc/elements/1.1/">
+  <channel>
+    <title>Fictional fixture — no real account</title>
+    <item><title>Example diary item</title><link>https://letterboxd.com/fictional/film/the-last-matinee/2/</link><guid isPermaLink="false">fictional-session-2</guid><pubDate>Sun, 04 Oct 2026 02:00:00 GMT</pubDate><letterboxd:watchedDate>2026-10-03</letterboxd:watchedDate><letterboxd:filmTitle>The Last Matinee</letterboxd:filmTitle><letterboxd:filmYear>2026</letterboxd:filmYear><letterboxd:memberRating>4.5</letterboxd:memberRating><letterboxd:rewatch>Yes</letterboxd:rewatch></item>
+    <item><title>Example diary item</title><link>https://letterboxd.com/fictional/film/the-last-matinee/1/</link><guid isPermaLink="false">fictional-session-1</guid><letterboxd:watchedDate>2026-09-30</letterboxd:watchedDate><letterboxd:filmTitle>The Last Matinee</letterboxd:filmTitle><letterboxd:filmYear>2026</letterboxd:filmYear></item>
+    <item><title>Duplicate delivery</title><link>https://letterboxd.com/fictional/film/the-last-matinee/2/</link><guid isPermaLink="false">fictional-session-2</guid><letterboxd:watchedDate>2026-10-03</letterboxd:watchedDate><letterboxd:filmTitle>The Last Matinee</letterboxd:filmTitle><letterboxd:filmYear>2026</letterboxd:filmYear><letterboxd:memberRating>4.5</letterboxd:memberRating></item>
+    <item><title>Example third diary</title><link>https://letterboxd.com/fictional/film/paper-and-moonlight/</link><guid>fictional-session-3</guid><letterboxd:watchedDate>2026-10-01</letterboxd:watchedDate><letterboxd:filmTitle><![CDATA[Paper & Moonlight]]></letterboxd:filmTitle><letterboxd:filmYear>2025</letterboxd:filmYear><letterboxd:memberRating>3</letterboxd:memberRating></item>
+    <item><title>A list, not a diary</title><pubDate>Sat, 03 Oct 2026 02:00:00 GMT</pubDate><description>Not needed by the application.</description></item>
+    <item><title>An undated review</title><letterboxd:filmTitle>Undated</letterboxd:filmTitle><pubDate>Sat, 03 Oct 2026 02:00:00 GMT</pubDate></item>
+    <item><title>Invalid date</title><letterboxd:filmTitle>Bad date</letterboxd:filmTitle><letterboxd:watchedDate>2026-02-30</letterboxd:watchedDate></item>
+  </channel>
+</rss>

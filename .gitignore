@@ -1,0 +1,14 @@
+node_modules/
+.next/
+out/
+coverage/
+test-results/
+playwright-report/
+*.tsbuildinfo
+.env*
+!.env.example
+# Private Letterboxd exports must never enter source control.
+letterboxd-*/
+*.zip
+*.csv
+!tests/fixtures/*.csv
