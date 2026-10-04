@@ -9,7 +9,7 @@ import { prepareReceiptAssets, receiptPng, savePng } from "@/lib/download";
 import { buildViewingProfile, genreLabel, tmdbCacheKey, type TmdbMovieMetadata, type TmdbMovieQuery } from "@/lib/tmdb";
 import { RECEIPT_BACKGROUNDS, type ReceiptBackgroundId } from "@/config/receipt-backgrounds";
 import { Button } from "@/components/ui/button";
-import { Field, FieldDescription, FieldGroup, FieldLabel, FieldLegend, FieldSet } from "@/components/ui/field";
+import { Field, FieldGroup, FieldLabel, FieldLegend, FieldSet } from "@/components/ui/field";
 import { Input } from "@/components/ui/input";
 import { ArrowUpRight, CloudUpload, Download, Share2, UserRound } from "lucide-react";
 
@@ -124,6 +124,11 @@ export function SlipboxdApp({ rssEnabled, tmdbEnabled }: { rssEnabled: boolean; 
   }
 
   async function upload(file: File) {
+    if (!/^diary\.csv$/i.test(file.name)) {
+      setError({ mode: "file", code: "file-type" });
+      if (fileInput.current) fileInput.current.value = "";
+      return;
+    }
     setLoading("file"); setError(null);
     try {
       const { importExportFile } = await import("@/lib/import-export");
@@ -202,36 +207,36 @@ export function SlipboxdApp({ rssEnabled, tmdbEnabled }: { rssEnabled: boolean; 
 
   return <main id="main" className="shell">
     {!data ? <>
-      <section className="intro"><p className="eyebrow"><span className="dot"/> {language === "en" ? "YOUR FILM DIARY, REPRINTED" : "DIARY FILM, DICETAK KEMBALI"}</p><h1>{language === "en" ? "Films you watched. Memories worth keeping." : "Film yang kamu tonton. Kenangan yang tersimpan."}</h1><p className="intro-copy">{language === "en" ? "Turn your Letterboxd diary into a movie receipt. Customize, download, and share your film journey." : "Ubah diary Letterboxd menjadi struk film. Sesuaikan, unduh, dan bagikan perjalanan filmmu."}</p></section>
+      <section className="intro"><p className="eyebrow"><span className="dot"/> {t.landing.eyebrow}</p><h1>{t.landing.introFirst}</h1><p className="intro-copy">{t.landing.introSecond}</p></section>
       <section className="landing-grid" aria-labelledby="source-heading">
         <div className="landing-primary"><div className="source-area"><div className="section-heading"><span className="step">01</span><h2 id="source-heading" ref={sourceHeading} tabIndex={-1}>{t.landing.start}</h2></div>
           <p className="muted">{t.landing.startNote}</p>
-          <div className="source-tabs" role="tablist" aria-label={language === "en" ? "Choose data source" : "Pilih sumber data"}><Button variant="ghost" type="button" role="tab" aria-selected={sourceTab === "file"} onClick={() => setSourceTab("file")}><CloudUpload aria-hidden="true" size={14}/>{language === "en" ? "Upload data" : "Unggah data"}</Button><Button variant="ghost" type="button" role="tab" aria-selected={sourceTab === "rss"} onClick={() => setSourceTab("rss")}><UserRound aria-hidden="true" size={14}/>Letterboxd username</Button></div>
+          <div className="source-tabs" role="tablist" aria-label={language === "en" ? "Choose data source" : "Pilih sumber data"}><Button variant="ghost" type="button" role="tab" aria-selected={sourceTab === "file"} onClick={() => setSourceTab("file")}><CloudUpload aria-hidden="true" size={14}/>{t.landing.uploadTab}</Button><Button variant="ghost" type="button" role="tab" aria-selected={sourceTab === "rss"} onClick={() => setSourceTab("rss")}><UserRound aria-hidden="true" size={14}/>Letterboxd username</Button></div>
           <div className="source-cards">
             <section className="source-card" aria-labelledby="upload-title" hidden={sourceTab !== "file"} onDragOver={event => event.preventDefault()} onDrop={event => { event.preventDefault(); const file = event.dataTransfer.files[0]; if (file) void upload(file); }}><div className="card-icon" aria-hidden="true"><CloudUpload size={34} strokeWidth={2.3}/></div><h3 id="upload-title">{t.landing.uploadTitle}</h3><p>{t.landing.uploadBody}</p>
               <p className="source-scope">{t.landing.uploadScope}</p>
               <a className="text-link" href="https://letterboxd.com/user/exportdata/" target="_blank" rel="noopener noreferrer">{t.landing.exportLink.replace(/\s*↗$/, "")} <ArrowUpRight size={13} aria-hidden="true"/></a>
               <Button type="button" className="file-label" disabled={!!loading} onClick={() => fileInput.current?.click()}>{t.landing.chooseFile}</Button>
-              <input ref={fileInput} id="diary-file" type="file" accept=".zip,.csv" disabled={!!loading} aria-label={t.landing.chooseFile} aria-describedby={error?.mode === "file" ? "file-error file-help" : "file-help"} aria-invalid={error?.mode === "file"} onChange={event => { const file = event.target.files?.[0]; if (file) void upload(file); }}/>
+              <input ref={fileInput} id="diary-file" type="file" accept=".csv,text/csv" disabled={!!loading} aria-label={t.landing.chooseFile} aria-describedby={error?.mode === "file" ? "file-error file-help" : "file-help"} aria-invalid={error?.mode === "file"} onChange={event => { const file = event.target.files?.[0]; if (file) void upload(file); }}/>
               <p id="file-help" className="small muted">{t.landing.fileHelp}</p>
               {error?.mode === "file" && <div id="file-error" className="error" role="alert"><p>{errorMessage}</p><Button variant="link" className="text-button" onClick={() => fileInput.current?.click()}>{t.landing.chooseAnother}</Button></div>}
             </section>
             <section className="source-card" aria-labelledby="rss-title" hidden={sourceTab !== "rss"}><div className="card-icon" aria-hidden="true">@</div><h3 id="rss-title">{t.landing.usernameTitle}</h3><p>{t.landing.usernameBody}</p>
               <p className="source-scope">{t.landing.usernameScope}</p>
-              {rssEnabled ? <form onSubmit={loadRss} noValidate><Field><FieldLabel htmlFor="username">{t.landing.usernameLabel}</FieldLabel><Input id="username" value={username} onChange={event => setUsername(event.target.value)} placeholder={t.landing.usernamePlaceholder} autoCapitalize="none" spellCheck={false} autoComplete="off" maxLength={40} disabled={!!loading} aria-invalid={error?.mode === "rss"} aria-describedby={error?.mode === "rss" ? "rss-error" : undefined}/></Field>
-                <Button className="primary" type="submit" disabled={!!loading}>{loading === "rss" ? t.landing.loadingRss : error?.mode === "rss" ? t.landing.retry : t.landing.load}<span aria-hidden="true">↗</span></Button>
+              {rssEnabled ? <form onSubmit={loadRss} noValidate><Field><FieldLabel htmlFor="username">{t.landing.usernameLabel}</FieldLabel><Input id="username" className="username-input" value={username} onChange={event => setUsername(event.target.value)} placeholder={t.landing.usernamePlaceholder} autoCapitalize="none" spellCheck={false} autoComplete="off" maxLength={40} disabled={!!loading} aria-invalid={error?.mode === "rss"} aria-describedby={error?.mode === "rss" ? "rss-error" : undefined}/></Field>
+                <Button className="primary" type="submit" disabled={!!loading}>{loading === "rss" ? t.landing.loadingRss : error?.mode === "rss" ? t.landing.retry : t.landing.load}<ArrowUpRight size={16} aria-hidden="true"/></Button>
               </form> : <p className="notice">{t.landing.rssDisabled}</p>}
               {error?.mode === "rss" && <div id="rss-error" className="error" role="alert"><p>{errorMessage}</p><Button variant="link" className="text-button" onClick={() => { fileInput.current?.focus(); fileInput.current?.click(); }}>{t.landing.uploadInstead}</Button></div>}
             </section>
           </div>
           <p role="status" aria-live="polite" className="status">{loading === "file" ? t.landing.readingFile : loading === "rss" ? t.landing.loadingRss : t.landing.privacyStatus}</p>
         </div>
-          <section className="journey-steps" aria-labelledby="journey-title"><div className="journey-heading"><h2 id="journey-title">From Diary to Receipt</h2><p>Three steps. One story.</p></div><div className="journey-cards"><article><h3>1. Bring your diary</h3><p>Upload your Letterboxd export or use your public username.</p></article><article><h3>2. Make it yours</h3><p>Choose a period, adjust the details, and customize your receipt.</p></article><article><h3>3. Keep your journey</h3><p>Download a PNG, or share it if your browser supports it.</p></article></div></section>
+          <section className="journey-steps" aria-labelledby="journey-title"><div className="journey-heading"><h2 id="journey-title">{t.landing.journeyTitle}</h2><p>{t.landing.journeySubtitle}</p></div><div className="journey-cards">{t.landing.journeySteps.map((step, index) => <article key={step.title}><h3>{index + 1}. {step.title}</h3><p>{step.body}</p></article>)}</div></section>
         </div>
-        <aside className="example-stage" aria-label={t.landing.exampleAria}><span className="stage-label">Sample Receipt <span>PNG</span></span><div className={`example-receipt ${receiptAssetsReady ? "" : "receipt-loading"}`}>{receiptAssetsReady && <Receipt entries={exampleEntries} settings={{ ...defaultSettings, name: "SKINNYDOOKIE", valueType: "minute" }} source="export" dictionary={t} metadata={exampleMetadata} printedAt={new Date("2026-09-30T12:00:00Z")} example/>}</div><p className="example-label">↳ Your diary, turned into a little keepsake.<br/>Sample data · Your receipt is created after import</p></aside>
+        <aside className="example-stage" aria-label={t.landing.exampleAria}><span className="stage-label">{t.landing.previewLabel} <span>PNG</span></span><div className={`example-receipt ${receiptAssetsReady ? "" : "receipt-loading"}`}>{receiptAssetsReady && <Receipt entries={exampleEntries} settings={{ ...defaultSettings, name: "SKINNYDOOKIE", valueType: "minute" }} source="export" dictionary={t} metadata={exampleMetadata} printedAt={new Date("2026-09-30T12:00:00Z")} example/>}</div><p className="example-label">{t.landing.previewCaption}</p></aside>
       </section>
     </> : <section className="editor" aria-labelledby="editor-heading">
-      <div className="editor-top"><div><p className="eyebrow"><span className="dot"/> {t.editor.eyebrow}</p><h1 id="editor-heading" ref={editorHeading} tabIndex={-1}>{t.editor.heading}</h1><p className="editor-intro">{language === "en" ? "Turn your Letterboxd diary into a movie receipt. Customize, download, and share your film journey." : "Ubah diary Letterboxd menjadi struk film. Sesuaikan, unduh, dan bagikan perjalanan filmmu."}</p></div><button ref={switchButton} className="secondary" disabled={exporting} onClick={() => setConfirmReset(true)}>{t.editor.switchSource}</button></div>
+      <div className="editor-top"><div><p className="eyebrow"><span className="dot"/> {t.editor.eyebrow}</p><h1 id="editor-heading" ref={editorHeading} tabIndex={-1}>{t.editor.heading}</h1><p className="editor-intro">{t.editor.intro}</p></div><button ref={switchButton} className="secondary" disabled={exporting} onClick={() => setConfirmReset(true)}>{t.editor.switchSource}</button></div>
       <div className="import-summary" role="status"><strong>{data.source === "rss" ? t.editor.rssSource : t.editor.exportSource}</strong><span>{t.editor.available(formatNumber(data.entries.length, t), formatRange(data.entries, t))}</span>
         {data.source === "rss" && <p>{t.editor.rssLimit(formatNumber(data.entries.length, t))}</p>}
         {data.skipped > 0 && <p>{data.source === "rss" ? t.editor.skippedRss(formatNumber(data.skipped, t)) : t.editor.skippedExport(formatNumber(data.skipped, t))}</p>}
@@ -255,10 +260,9 @@ export function SlipboxdApp({ rssEnabled, tmdbEnabled }: { rssEnabled: boolean; 
             </>}</div>
           </section>
         </div>
-        <div className="controls"><h2 className="controls-heading">{language === "en" ? "Form Input" : "Pengaturan Struk"}</h2><div className="controls-body"><FieldSet disabled={exporting}><FieldLegend><span className="step">01</span> {t.editor.content}</FieldLegend>
+        <div className="controls"><h2 className="controls-heading">{t.editor.settingsHeading}</h2><div className="controls-body"><FieldSet disabled={exporting}><FieldLegend><span className="step">01</span> {t.editor.content}</FieldLegend>
           <FieldGroup>
             <Field><FieldLabel htmlFor="receipt-name">{t.editor.name}</FieldLabel><Input id="receipt-name" maxLength={48} value={settings.name} onChange={event => change("name", event.target.value)} placeholder={t.editor.namePlaceholder}/></Field>
-            <Field><FieldLabel htmlFor="receipt-title">{t.editor.title}</FieldLabel><Input id="receipt-title" maxLength={60} value={settings.title} onChange={event => change("title", event.target.value)} placeholder={t.editor.titlePlaceholder}/><FieldDescription>{t.editor.maxTitle}</FieldDescription></Field>
             <Field><FieldLabel htmlFor="period">{t.editor.period}</FieldLabel><select id="period" value={settings.period} onChange={event => change("period", event.target.value)}><option value="all">{t.editor.allData}</option><optgroup label={t.editor.years}>{periods?.years.map(year => <option key={year} value={year}>{year}</option>)}</optgroup><optgroup label={t.editor.months}>{periods?.months.map(month => <option key={month} value={month}>{formatMonth(month, t)}</option>)}</optgroup></select></Field>
             <div className="control-row"><Field><FieldLabel htmlFor="sort">{t.editor.sort}</FieldLabel><select id="sort" value={settings.sort} onChange={event => change("sort", event.target.value as ReceiptSettings["sort"])}><option value="newest">{t.editor.newest}</option><option value="oldest">{t.editor.oldest}</option><option value="rating" disabled={!rated}>{t.editor.topRated}{!rated ? ` (${t.editor.unavailable})` : ""}</option></select></Field><Field><FieldLabel htmlFor="count">{t.editor.rowCount}</FieldLabel><select id="count" value={settings.count} onChange={event => change("count", Number(event.target.value) as 10 | 20)}><option value={10}>{t.editor.rows(formatNumber(10, t))}</option><option value={20}>{t.editor.rows(formatNumber(20, t))}</option></select></Field></div>
             <Field><FieldLabel htmlFor="value-type">{t.editor.valueType}</FieldLabel><select id="value-type" value={settings.valueType} onChange={event => change("valueType", event.target.value as ReceiptSettings["valueType"])}><option value="rating">{t.editor.rating}</option><option value="minute">{t.editor.minute}</option></select></Field>

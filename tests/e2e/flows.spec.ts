@@ -1,7 +1,6 @@
 import { test, expect } from "@playwright/test";
 import { readFile } from "node:fs/promises";
 import { fileURLToPath } from "node:url";
-import { zipSync, strToU8 } from "fflate";
 import { PNG } from "pngjs";
 import { parseRss } from "../../src/lib/rss";
 import { ACTIVE_RECEIPT_BACKGROUND } from "../../src/config/receipt-backgrounds";
@@ -31,12 +30,14 @@ test("CSV → rating and minute receipt → four papers → PNG; local data stay
   page.on("pageerror", error => errors.push(error.message));
   page.on("request", request => outgoing.push({ url: request.url(), body: request.postData() }));
   await page.goto("/");
+  await expect(page.getByRole("heading", { name: "Buat strukmu" })).toBeVisible();
   await page.getByRole("button", { name: "ID", exact: true }).click();
-  await expect(page.getByRole("heading", { name: /Film yang kamu tonton/ })).toBeVisible();
+  await expect(page.getByRole("heading", { name: "Ubah diary Letterboxd-mu menjadi struk." })).toBeVisible();
   await page.screenshot({ path: testInfo.outputPath("landing.png"), fullPage: true });
   expect(await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth)).toBe(true);
-  await page.getByLabel("Pilih ZIP / diary.csv").setInputFiles(csvPath);
-  await expect(page.getByRole("heading", { name: "Buat jadi milikmu." })).toBeFocused();
+  await page.getByLabel("Pilih diary.csv").setInputFiles(csvPath);
+  await expect(page.getByRole("heading", { name: "Atur strukmu." })).toBeFocused();
+  await expect(page.getByLabel("Judul struk")).toHaveCount(0);
   await expect(page.getByText("5 entri tersedia", { exact: false })).toBeVisible();
   await expect(page.getByText("2 baris tanpa", { exact: false })).toBeVisible();
   const receipt = page.getByTestId("receipt");
@@ -48,7 +49,6 @@ test("CSV → rating and minute receipt → four papers → PNG; local data stay
   expect(await page.evaluate(() => document.fonts.check('16px "Merchant Copy"'))).toBe(true);
   await expect(receipt).toHaveAttribute("aria-label", /5 baris, 5 sesi.*4 film unik/);
   await page.getByLabel("Nama pada struk").fill("Film Friend");
-  await page.getByLabel("Judul struk").fill("My October Cinema Diary");
   await page.getByLabel("Periode", { exact: true }).selectOption("2026-10");
   await expect(page.getByText("Metadata TMDB:", { exact: false })).toContainText("2 cocok");
   await expect(receipt).toHaveAttribute("aria-label", /2 baris, 2 sesi.*2 film unik/);
@@ -101,7 +101,7 @@ test("CSV → rating and minute receipt → four papers → PNG; local data stay
 test("receipt exports the configured texture and Merchant Copy with 10 and 20 entries", async ({ page }, testInfo) => {
   const rows = Array.from({ length: 20 }, (_, index) => `Film ${String(index + 1).padStart(2, "0")},2026,2026-10-${String((index % 20) + 1).padStart(2, "0")},${(index % 5) + 0.5}`);
   await page.goto("/");
-  await page.getByLabel("Pilih ZIP / diary.csv").setInputFiles({
+  await page.getByLabel("Pilih diary.csv").setInputFiles({
     name: "diary.csv",
     mimeType: "text/csv",
     buffer: Buffer.from(`Name,Year,Watched Date,Rating\n${rows.join("\n")}`),
@@ -110,11 +110,27 @@ test("receipt exports the configured texture and Merchant Copy with 10 and 20 en
   await expect(page.getByText("Metadata TMDB:", { exact: false })).toContainText("20 cocok");
   await expect(receipt).toHaveAttribute("aria-label", /10 baris, 20 sesi.*20 film unik/);
   await expect(receipt.locator("image[data-receipt-background]")).toHaveAttribute("href", ACTIVE_RECEIPT_BACKGROUND);
+  const filmSpacing = await receipt.evaluate(svg => {
+    const [first, second] = [...svg.querySelectorAll("g > g")];
+    const firstTexts = [...first.querySelectorAll("text")];
+    const title = firstTexts[1].getBBox();
+    const year = firstTexts.at(-1)!.getBBox();
+    const firstY = Number(firstTexts[1].getAttribute("y"));
+    const secondY = Number(second.querySelectorAll("text")[1].getAttribute("y"));
+    const movie = [...svg.querySelectorAll<SVGTextElement>("g > text")][6].getBBox();
+    return { yearGap: (year.y - title.y - title.height) * 3, yearBaselineOffset: Number(firstTexts.at(-1)!.getAttribute("y")) - firstY, rowStep: secondY - firstY, headerTopGap: movie.y - 208, headerBottomGap: 243 - movie.y - movie.height };
+  });
+  expect(filmSpacing.yearBaselineOffset).toBe(15.5);
+  expect(filmSpacing.yearGap).toBeGreaterThan(15);
+  expect(filmSpacing.yearGap).toBeLessThan(22);
+  expect(filmSpacing.rowStep).toBe(45);
+  expect(Math.abs(filmSpacing.headerTopGap - filmSpacing.headerBottomGap)).toBeLessThan(1.5);
   const tenDownload = page.waitForEvent("download");
   await page.getByRole("button", { name: "Download PNG" }).click();
   const tenPath = testInfo.outputPath("receipt-10.png");
   await (await tenDownload).saveAs(tenPath);
   const ten = PNG.sync.read(await readFile(tenPath));
+  expect(ten.height).toBe(2814);
 
   await page.getByLabel("Jumlah baris").selectOption("20");
   await expect(receipt).toHaveAttribute("aria-label", /20 baris, 20 sesi.*20 film unik/);
@@ -125,16 +141,32 @@ test("receipt exports the configured texture and Merchant Copy with 10 and 20 en
   const twenty = PNG.sync.read(await readFile(twentyPath));
   expect(ten.width).toBe(1320);
   expect(twenty.width).toBe(1320);
-  expect(twenty.height).toBeGreaterThan(ten.height);
+  expect(twenty.height).toBe(4164);
 });
 
-test("ZIP upload and bad-file recovery", async ({ page }) => {
+test("diary.csv upload and bad-file recovery", async ({ page }) => {
   await page.goto("/");
-  const input = page.getByLabel("Pilih ZIP / diary.csv");
-  await input.setInputFiles({ name: "empty.zip", mimeType: "application/zip", buffer: Buffer.from(zipSync({ "watched.csv": strToU8("unused") })) });
-  await expect(page.getByRole("main").getByRole("alert")).toContainText("tidak menemukan diary.csv");
-  await input.setInputFiles({ name: "synthetic.zip", mimeType: "application/zip", buffer: Buffer.from(zipSync({ "export/diary.csv": strToU8(await readFile(csvPath, "utf8")) })) });
-  await expect(page.getByRole("heading", { name: "Buat jadi milikmu." })).toBeVisible();
+  const input = page.getByLabel("Pilih diary.csv");
+  await expect(input).toHaveAttribute("accept", ".csv,text/csv");
+  await input.setInputFiles({ name: "watched.csv", mimeType: "text/csv", buffer: Buffer.from("Name,Watched Date\nExample,2026-10-01") });
+  await expect(page.getByRole("main").getByRole("alert")).toContainText("pilih file bernama diary.csv");
+  await input.setInputFiles(csvPath);
+  await expect(page.getByRole("heading", { name: "Atur strukmu." })).toBeVisible();
+  await expect(page.getByTestId("receipt")).toHaveAttribute("aria-label", /5 baris/);
+});
+
+test("ZIP dropped onto the CSV upload area is rejected with recovery guidance", async ({ page }) => {
+  await page.goto("/");
+  const input = page.getByLabel("Pilih diary.csv");
+  await page.locator("#upload-title").evaluate(element => {
+    const transfer = new DataTransfer();
+    transfer.items.add(new File(["PK"], "letterboxd-export.zip", { type: "application/zip" }));
+    element.closest("section")?.dispatchEvent(new DragEvent("drop", { bubbles: true, cancelable: true, dataTransfer: transfer }));
+  });
+  const alert = page.getByRole("main").getByRole("alert");
+  await expect(alert).toContainText("Ekstrak ekspor Letterboxd lalu pilih file bernama diary.csv");
+  await input.setInputFiles(csvPath);
+  await expect(page.getByRole("heading", { name: "Atur strukmu." })).toBeVisible();
   await expect(page.getByTestId("receipt")).toHaveAttribute("aria-label", /5 baris/);
 });
 
@@ -148,6 +180,10 @@ test("RSS fixture → editor → PNG, with source limitations and recovery", asy
   });
   await page.goto("/");
   await page.getByRole("tab", { name: /Letterboxd username/ }).click();
+  await expect(page.getByLabel("Username Letterboxd")).toHaveAttribute("data-slot", "input");
+  const loadButton = page.getByRole("button", { name: "Muat aktivitas terbaru" });
+  await expect(loadButton).toHaveAttribute("data-slot", "button");
+  await expect(loadButton.locator("svg")).toHaveCount(1);
   await page.getByLabel("Username Letterboxd").fill("https://invalid.test");
   await page.getByRole("button", { name: "Muat aktivitas terbaru" }).click();
   await expect(page.getByRole("main").getByRole("alert")).toContainText("Masukkan username, bukan URL");
@@ -155,9 +191,9 @@ test("RSS fixture → editor → PNG, with source limitations and recovery", asy
   await page.getByLabel("Username Letterboxd").fill("fictional");
   await page.getByRole("button", { name: "Coba lagi" }).click();
   await expect(page.getByRole("main").getByRole("alert")).toContainText("terlalu lama");
-  await expect(page.getByRole("button", { name: "Upload ekspor", exact: true })).toBeVisible();
+  await expect(page.getByRole("button", { name: "Unggah diary.csv", exact: true })).toBeVisible();
   await page.getByRole("button", { name: "Coba lagi" }).click();
-  await expect(page.getByRole("heading", { name: "Buat jadi milikmu." })).toBeVisible();
+  await expect(page.getByRole("heading", { name: "Atur strukmu." })).toBeVisible();
   await expect(page.getByLabel("Nama pada struk")).toHaveValue("fictional");
   await expect(page.getByText("Dari aktivitas publik terbaru")).toBeVisible();
   await expect(page.getByTestId("receipt")).toHaveAttribute("aria-label", /3 baris, 3 sesi.*2 film unik/);
@@ -170,14 +206,23 @@ test("RSS fixture → editor → PNG, with source limitations and recovery", asy
 test("missing ratings disable sorting, long titles wrap, export failure preserves controls", async ({ page }) => {
   await page.goto("/");
   const title = "A very long fictional film title with no rating and a much longer name than a single line can hold";
-  await page.getByLabel("Pilih ZIP / diary.csv").setInputFiles({ name: "diary.csv", mimeType: "text/csv", buffer: Buffer.from(`Name,Watched Date\n${title},2026-10-03`) });
+  await page.getByLabel("Pilih diary.csv").setInputFiles({ name: "diary.csv", mimeType: "text/csv", buffer: Buffer.from(`Name,Watched Date\n${title},2026-10-03`) });
   await expect(page.getByRole("option", { name: "Rating tertinggi (tidak tersedia)" })).toBeDisabled();
-  await expect(page.getByTestId("receipt")).toContainText("—");
-  await page.getByLabel("Judul struk").fill("Keep this title");
+  const receipt = page.getByTestId("receipt");
+  await expect(receipt).toContainText("—");
+  const titleRightEdges = await receipt.locator("g > g").first().locator("text").evaluateAll(elements =>
+    elements.slice(1, -2).map(element => {
+      const box = (element as SVGTextElement).getBBox();
+      return box.x + box.width;
+    }),
+  );
+  expect(titleRightEdges.length).toBeGreaterThan(1);
+  expect(Math.max(...titleRightEdges)).toBeLessThan(390);
+  await page.getByLabel("Nama pada struk").fill("Keep this name");
   await page.evaluate(() => { HTMLCanvasElement.prototype.toBlob = function(callback) { callback(null); }; });
   await page.getByRole("button", { name: "Download PNG" }).click();
   await expect(page.getByRole("main").getByRole("alert")).toContainText("Gambar belum berhasil dibuat");
-  await expect(page.getByLabel("Judul struk")).toHaveValue("Keep this title");
+  await expect(page.getByLabel("Nama pada struk")).toHaveValue("Keep this name");
   expect(await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth)).toBe(true);
 });
 
@@ -186,10 +231,10 @@ test("keyboard reaches source actions and editor controls", async ({ page }) => 
   await page.keyboard.press("Tab");
   await expect(page.getByRole("link", { name: "Lewati ke konten" })).toBeFocused();
   await page.keyboard.press("Enter");
-  await page.getByRole("tab", { name: /Unggah data/ }).focus();
-  await expect(page.getByRole("tab", { name: /Unggah data/ })).toBeFocused();
-  await page.getByLabel("Pilih ZIP / diary.csv").setInputFiles(csvPath);
-  await expect(page.getByRole("heading", { name: "Buat jadi milikmu." })).toBeFocused();
+  await page.getByRole("tab", { name: /Unggah ekspor/ }).focus();
+  await expect(page.getByRole("tab", { name: /Unggah ekspor/ })).toBeFocused();
+  await page.getByLabel("Pilih diary.csv").setInputFiles(csvPath);
+  await expect(page.getByRole("heading", { name: "Atur strukmu." })).toBeFocused();
   await page.keyboard.press("Tab");
   await expect(page.getByRole("button", { name: "Ganti sumber" })).toBeFocused();
   await page.keyboard.press("Tab");

@@ -25,10 +25,10 @@ Tes browser memakai Google Chrome yang terpasang, desktop dan emulasi Pixel 7. U
 
 ## Alur dan batas data
 
-- **Upload ekspor:** pilih ZIP resmi atau `diary.csv`. Pembacaan, dekompresi, parsing, normalisasi, preview, dan PNG berlangsung di browser. Batas ZIP 20 MB; CSV hasil dekompresi 10 MB. Hanya `diary.csv` diekstrak. ZIP multipart, ZIP64, dan ZIP berkata sandi ditolak dengan pemulihan ke CSV langsung. Integritas central directory dan CRC diary diperiksa.
+- **Upload ekspor:** unduh ekspor resmi Letterboxd, ekstrak, lalu unggah file `diary.csv` di dalamnya. UI menerima `diary.csv` hingga 10 MB; ZIP tidak ditawarkan sebagai pilihan upload. Pembacaan, parsing, normalisasi, preview, dan PNG berlangsung di browser. Parser ZIP lama tetap ada untuk kompatibilitas internal, tetapi tidak dipakai dalam alur upload UI.
 - **Username:** `GET /api/rss?username=…` mengambil satu feed `https://letterboxd.com/{username}/rss/`. Validasi username, host tetap, redirect ditolak, timeout 8 detik termasuk pembacaan body, maksimum respons 2 MB. Tidak ada pengambilan HTML, pagination, login, atau API resmi.
 - **Cache RSS:** hanya entri publik yang sudah dinormalisasi, 60 detik, maksimum 100 username per proses. Cache memori tidak dibagi antar-instance; tidak ada database. XML/review tidak disimpan. Respons sukses boleh di-cache paling lama sisa TTL tersebut.
-- **Editor:** nama/judul, semua data/tahun/bulan yang ditemukan, urutan terbaru/terlama/rating, 10/20 baris, pilihan nilai **rating** (default) atau **menit** (TMDB), dan empat jenis kertas dari `public/assets/`. Perubahan langsung memperbarui struk.
+- **Editor:** nama pada struk, semua data/tahun/bulan yang ditemukan, urutan terbaru/terlama/rating, 10/20 baris, pilihan nilai **rating** (default) atau **menit** (TMDB), dan empat jenis kertas dari `public/assets/`. Perubahan langsung memperbarui struk.
 - **PNG:** SVG preview yang sama dirasterisasi menjadi PNG 3× (lebar 1320 px), tanpa kontrol editor. Font lokal Merchant Copy dan texture kertas aktif ditunggu lalu di-embed ke salinan SVG sebelum rasterisasi. Nama file disanitasi. Berbagi memakai Web Share jika tersedia, dengan fallback download; pembatalan dialog berbagi tidak memaksa download.
 - **Metadata TMDB:** film unik pada periode terpilih dikirim sebagai judul dan tahun rilis ke route internal `POST /api/tmdb`. Route server memakai Bearer token, maksimal 25 film per batch, tiga request paralel, timeout tujuh detik, dan penanganan per film. Cache browser hanya hidup selama sesi. Hasil ambigu atau tahun yang tidak cocok dibiarkan kosong.
 - **Rating, runtime, dan Viewing Profile:** kolom `RATING` dan rata-rata memakai data CSV/RSS yang diimpor. Saat memilih menit, kolom `MIN` dan total runtime hanya memakai film yang cocok dengan yakin di TMDB. Viewing Profile merangkum paling banyak tiga genre dari film unik yang cocok dan bukan penilaian psikologis.
@@ -88,15 +88,15 @@ npx tsx scripts/check-rss.ts USERNAME_PUBLIK
 ## Verifikasi implementasi — 4 Oktober 2026
 
 - Typecheck dan production build lulus.
-- 20 tes unit/integrasi lulus: seluruh cakupan parser/route sebelumnya, kesetaraan dictionary, format tanggal/angka ID/EN, serta pemetaan asset receipt lokal.
-- 20 tes browser lulus (10 skenario × desktop/mobile): seluruh alur CSV/ZIP/RSS dan PNG sebelumnya, font/texture receipt, export 10/20 entri, navigator default, persistence manual, `document.lang`, switch bahasa setelah impor tanpa kehilangan state, route About, accordion keyboard, kredit/tautan, dan overflow.
+- 24 tes unit/integrasi lulus: cakupan parser/route, kesetaraan dictionary, format tanggal/angka ID/EN, serta pemetaan asset receipt lokal.
+- 22 tes browser lulus (11 skenario × desktop/mobile): upload `diary.csv`, penolakan ZIP dengan petunjuk pemulihan, RSS dan PNG, font/texture receipt, export 10/20 entri, navigator default, persistence manual, `document.lang`, switch bahasa setelah impor tanpa kehilangan state, route About, accordion keyboard, kredit/tautan, dan overflow.
 - Screenshot landing/editor/About desktop/mobile serta PNG fiktif diperiksa secara visual. Artefak tes ada di `test-results/` dan diabaikan Git.
 - `diary.csv` asli yang sudah ada di workspace diperiksa **secara lokal**: 152 sesi valid, 148 film unik, 0 baris dilewati. Alur impor browser sampai PNG 20 baris juga berhasil, tanpa request upload/API. Isi pribadi tidak disalin ke source/fixture atau dicetak; PNG smoke test dihapus setelah verifikasi.
 - Smoke test feed publik nyata melalui build produksi berhasil: HTTP 200, 50 entri valid, editor 20 baris sampai download PNG, tanpa error browser. Feed tidak disimpan sebagai fixture.
 
 Masih perlu divalidasi sebelum rilis:
 
-1. Arsip ZIP resmi utuh dari Letterboxd (yang tersedia lokal adalah hasil ekstraknya), serta variasi ekspor dari akun lain, bukan hanya CSV asli satu akun dan ZIP sintetis.
+1. File `diary.csv` dari variasi ekspor dan akun Letterboxd lain, bukan hanya fixture fiktif dan satu CSV lokal.
 2. Safari/iPhone dan Android fisik: pemilihan file, keterbacaan PNG 10/20 baris, download, zoom, pembaca layar, dan dialog berbagi native.
 3. Uji tugas dengan pengguna Letterboxd untuk memastikan cakupan RSS dan perbedaan sesi/film unik dipahami; target kuantitatif belum ditetapkan.
 4. Keputusan release gate RSS, domain/nama merek, dan uji akses RSS dari lingkungan deployment yang sebenarnya. Keberhasilan smoke test lokal tidak menjamin ketersediaan feed setiap akun atau setiap waktu.

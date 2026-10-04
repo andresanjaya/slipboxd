@@ -58,13 +58,15 @@ export const Receipt = forwardRef<SVGSVGElement, Props>(function Receipt(
   const heading = periodHeading(settings, rows, t.locale);
   const showMinutes = settings.valueType === "minute";
   const totalRuntime = rows.reduce((sum, entry) => sum + (metadataFor(entry, metadata)?.runtime ?? 0), 0);
+  const titleLineHeight = 19.33;
   const rowLayouts = rows.map(entry => {
-    const lines = wrapText(entry.title.toLocaleUpperCase(t.locale), 36);
-    return { entry, lines, height: Math.max(54, lines.length * 20 + 22) };
+    const lines = wrapText(entry.title.toLocaleUpperCase(t.locale), 40);
+    return { entry, lines, height: 45 + (lines.length - 1) * titleLineHeight };
   });
   const listHeight = rowLayouts.reduce((sum, row) => sum + row.height, 0);
-  const height = 490 + listHeight + (rows.length ? 0 : 34);
-  let rowY = 285;
+  const footerY = 269 + listHeight + (rows.length ? 9 : 34);
+  const height = footerY + 210;
+  let rowY = 269;
   const rated = rows.map(entry => entry.rating).filter((rating): rating is number => rating !== undefined);
   const averageRating = rated.length ? (rated.reduce((sum, rating) => sum + rating, 0) / rated.length).toFixed(1) : "—";
   const rowCount = formatNumber(rows.length, t);
@@ -77,43 +79,42 @@ export const Receipt = forwardRef<SVGSVGElement, Props>(function Receipt(
     <desc>{rows.map(entry => entry.title).join("; ")}</desc>
     <image data-receipt-asset data-receipt-background href={RECEIPT_BACKGROUNDS[settings.paper]} width="440" height={height} preserveAspectRatio="xMidYMid slice"/>
     <g fill="#34362e" fontFamily="'Merchant Copy', monospace" fontWeight="400">
-      <image data-receipt-asset href="/assets/figma-letterboxd-logo.svg" x="151" y="39" width="138" height="65.5" preserveAspectRatio="xMidYMid meet"/>
-      <text x="220" y="136" textAnchor="middle" fontSize="19" letterSpacing="6.9">{heading}</text>
-      <path d="M35 158 H405" stroke="#98978a" strokeWidth="1" strokeDasharray="3 3"/>
-      <text x="35" y="180" fontSize="16" letterSpacing="0.8">{t.receipt.orderFor(orderName)}</text>
-      <text x="405" y="180" textAnchor="end" fontSize="16" letterSpacing="0.8">{t.receipt.register}</text>
-      <text x="35" y="198" fontSize="16" letterSpacing="0.8">{printedDate(printedAt, t.locale)}</text>
-      <text x="405" y="198" textAnchor="end" fontSize="16" letterSpacing="0.8">{t.receipt.cashier}</text>
-      <path d="M35 218 H405" stroke="#98978a" strokeWidth="1" strokeDasharray="3 3"/>
-      <text x="35" y="246" fontSize="19">#</text>
-      <text x="71" y="246" fontSize="19">{t.receipt.movie}</text>
-      <text x="405" y="246" textAnchor="end" fontSize="19">{showMinutes ? t.receipt.minutes : t.receipt.rating}</text>
-      <path d="M35 264 H405" stroke="#98978a" strokeWidth="1" strokeDasharray="3 3"/>
+      <image data-receipt-asset href="/assets/figma-letterboxd-logo.svg" x="151" y="30" width="138" height="65.5" preserveAspectRatio="xMidYMid meet"/>
+      <text x="220" y="129" textAnchor="middle" fontSize="19.33" letterSpacing="6.9">{heading}</text>
+      <path d="M35 149 H405" stroke="#98978a" strokeWidth="1.55" strokeDasharray="3 3"/>
+      <text x="35" y="170" fontSize="16.67" letterSpacing="0.83">{t.receipt.orderFor(orderName)}</text>
+      <text x="405" y="170" textAnchor="end" fontSize="16.67" letterSpacing="0.83">{t.receipt.register}</text>
+      <text x="35" y="188" fontSize="16.67" letterSpacing="0.83">{printedDate(printedAt, t.locale)}</text>
+      <text x="405" y="188" textAnchor="end" fontSize="16.67" letterSpacing="0.83">{t.receipt.cashier}</text>
+      <path d="M35 208 H405" stroke="#98978a" strokeWidth="1.55" strokeDasharray="3 3"/>
+      <text x="35" y="231" fontSize="19.33">#</text>
+      <text x="71" y="231" fontSize="19.33">{t.receipt.movie}</text>
+      <text x="405" y="231" textAnchor="end" fontSize="19.33">{showMinutes ? t.receipt.minutes : t.receipt.rating}</text>
+      <path d="M35 243 H405" stroke="#98978a" strokeWidth="1.55" strokeDasharray="3 3"/>
       {rowLayouts.map(({ entry, lines, height: rowHeight }, index) => {
         const y = rowY;
         rowY += rowHeight;
         const runtime = metadataFor(entry, metadata)?.runtime;
         return <g key={`${entry.filmKey}:${entry.watchedDate}:${index}`}>
           <text x="35" y={y} fill="#717264" fontSize="14">{String(index + 1).padStart(2, "0")}</text>
-          {lines.map((line, lineIndex) => <text key={lineIndex} x="71" y={y + lineIndex * 20} fontSize="15.5">{line}</text>)}
+          {lines.map((line, lineIndex) => <text key={lineIndex} x="71" y={y + lineIndex * titleLineHeight} fontSize="19.33">{line}</text>)}
           <text x="405" y={y} textAnchor="end" fontSize="14">{showMinutes ? (runtime ? String(runtime) : "—") : (entry.rating === undefined ? "—" : formatNumber(entry.rating, t, 1))}</text>
-          <text x="71" y={y + lines.length * 20 + 2} fill="#737367" fontSize="12">{entry.releaseYear ?? "—"}</text>
+          <text x="71" y={y + (lines.length - 1) * titleLineHeight + 15.5} fill="#737367" fontSize="14">{entry.releaseYear ?? "—"}</text>
         </g>;
       })}
       {!rows.length && <text x="220" y="300" textAnchor="middle" fontSize="16">{t.receipt.noEntries}</text>}
       {(() => {
-        const footerY = 285 + listHeight + (rows.length ? 0 : 34);
         return <g>
-          <path d={`M35 ${footerY} H405`} stroke="#98978a" strokeWidth="1" strokeDasharray="3 3"/>
-          <text x="35" y={footerY + 24} fontSize="19">{t.receipt.itemCount}:</text>
-          <text x="405" y={footerY + 24} textAnchor="end" fontSize="19">{rowCount}</text>
-          <text x="35" y={footerY + 47} fontSize="19">{showMinutes ? "TOTAL RUNTIME:" : "AVERAGE RATING:"}</text>
-          <text x="405" y={footerY + 47} textAnchor="end" fontSize="19">{showMinutes ? (totalRuntime ? `${Math.floor(totalRuntime / 60)}h ${String(totalRuntime % 60).padStart(2, "0")}m` : "—") : (rated.length ? formatNumber(Number(averageRating), t, 1) : "—")}</text>
-          <path d={`M35 ${footerY + 64} H405`} stroke="#98978a" strokeWidth="1" strokeDasharray="3 3"/>
-          <text x="220" y={footerY + 93} textAnchor="middle" fontSize="16" letterSpacing="1">{t.receipt.thankYou}</text>
+          <path d={`M35 ${footerY} H405`} stroke="#98978a" strokeWidth="1.55" strokeDasharray="3 3"/>
+          <text x="35" y={footerY + 24} fontSize="19.33">{t.receipt.itemCount}:</text>
+          <text x="405" y={footerY + 24} textAnchor="end" fontSize="19.33">{rowCount}</text>
+          <text x="35" y={footerY + 47} fontSize="19.33">{showMinutes ? "TOTAL RUNTIME:" : "AVERAGE RATING:"}</text>
+          <text x="405" y={footerY + 47} textAnchor="end" fontSize="19.33">{showMinutes ? (totalRuntime ? `${Math.floor(totalRuntime / 60)}h ${String(totalRuntime % 60).padStart(2, "0")}m` : "—") : (rated.length ? formatNumber(Number(averageRating), t, 1) : "—")}</text>
+          <path d={`M35 ${footerY + 64} H405`} stroke="#98978a" strokeWidth="1.55" strokeDasharray="3 3"/>
+          <text x="220" y={footerY + 93} textAnchor="middle" fontSize="16.64" letterSpacing="1">{t.receipt.thankYou}</text>
           <text x="220" y={footerY + 107} textAnchor="middle" fontSize="14">{t.receipt.seeYou}</text>
           <image data-receipt-asset href="/assets/figma-barcode.svg" x="45" y={footerY + 121} width="350" height="42.17" preserveAspectRatio="none"/>
-          <text x="220" y={footerY + 183} textAnchor="middle" fontSize="16" letterSpacing="1.1">slipboxd.vercel.app</text>
+          <text x="220" y={footerY + 183} textAnchor="middle" fontSize="16.64" letterSpacing="1.1">slipboxd.vercel.app</text>
         </g>;
       })()}
     </g>

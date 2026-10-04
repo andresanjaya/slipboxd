@@ -28,11 +28,10 @@ export function SiteHeader() {
 }
 
 export function SiteFooter() {
-  const { dictionary: t, language } = useLanguage();
+  const { dictionary: t } = useLanguage();
   return <footer className="site-footer shell">
-    <div className="footer-brand"><span className="wordmark">slipboxd<span>.</span></span><p>{language === "en" ? "For the films that stay with you." : "Untuk film yang tetap bersamamu."}</p></div>
-    <Link className="footer-help" href="/about#faq">{language === "en" ? "Need a hand? ↗" : "Butuh bantuan? ↗"}</Link>
-    <span className="small">{t.footer.disclaimer}</span>
+    <div className="footer-brand"><span className="wordmark">slipboxd<span>.</span></span><p>{t.footer.note}</p></div>
+    <p className="footer-credit">{t.footer.madeBy} <a href="https://www.instagram.com/skinnydookie/" target="_blank" rel="noopener noreferrer">Andre Sanjaya</a>.</p>
   </footer>;
 }
 

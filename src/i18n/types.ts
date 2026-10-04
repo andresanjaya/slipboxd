@@ -8,23 +8,24 @@ export type Dictionary = {
   nav: { create: string; about: string; language: string; homeLabel: string; skip: string; primary: string; footer: string };
   meta: { homeTitle: string; homeDescription: string; aboutTitle: string; aboutDescription: string };
   header: { note: string; edition: string };
-  footer: { disclaimer: string; about: string; export: string; receiptify: string; privacy: string; signoff: string };
+  footer: { disclaimer: string; note: string; madeBy: string; about: string; export: string; receiptify: string; privacy: string; signoff: string };
   landing: {
     eyebrow: string; titleFirst: string; titleSecond: string; introFirst: string; introSecond: string;
-    start: string; startNote: string; uploadTitle: string; uploadBody: string; uploadScope: string;
+    start: string; startNote: string; uploadTab: string; uploadTitle: string; uploadBody: string; uploadScope: string;
     exportLink: string; chooseFile: string; fileHelp: string; chooseAnother: string;
     usernameTitle: string; usernameBody: string; usernameScope: string; usernameLabel: string;
     usernamePlaceholder: string; load: string; retry: string; uploadInstead: string; rssDisabled: string;
-    readingFile: string; loadingRss: string; privacyStatus: string; exampleAria: string; souvenir: string;
+    readingFile: string; loadingRss: string; privacyStatus: string; exampleAria: string; previewLabel: string; previewCaption: string; souvenir: string;
     exampleName: string; exampleTitle: string; exampleLabel: string; steps: [string, string, string];
+    journeyTitle: string; journeySubtitle: string; journeySteps: [{ title: string; body: string }, { title: string; body: string }, { title: string; body: string }];
   };
   editor: {
-    eyebrow: string; heading: string; switchSource: string; rssSource: string; exportSource: string;
+    eyebrow: string; heading: string; intro: string; settingsHeading: string; switchSource: string; rssSource: string; exportSource: string;
     available: (count: string, range: string) => string; rssLimit: (count: string) => string;
     skippedRss: (count: string) => string; skippedExport: (count: string) => string; duplicates: (count: string) => string;
     confirmLabel: string; confirm: string; cancel: string; confirmSwitch: string; livePreview: string;
     rowsUpper: (count: string) => string; previewHelp: string; content: string; name: string; namePlaceholder: string;
-    title: string; maxTitle: string; titlePlaceholder: string; period: string; allData: string; years: string; months: string;
+    period: string; allData: string; years: string; months: string;
     sort: string; newest: string; oldest: string; topRated: string; unavailable: string; rowCount: string;
     rows: (count: string) => string; appearance: string; template: string; classic: string; ticket: string;
     valueType: string; minute: string; rating: string;

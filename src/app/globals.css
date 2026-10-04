@@ -413,9 +413,9 @@ main.shell:has(.landing-grid) {
 .intro .eyebrow { margin-bottom: 14px; }
 .intro h1 {
   max-width: none;
-  font-size: 48px;
-  line-height: 1.15;
-  letter-spacing: -2.2px;
+  font-size: 40px;
+  line-height: 1.2;
+  letter-spacing: -1.5px;
   margin-bottom: 10px;
 }
 .intro-copy { margin-bottom: 28px; }
@@ -606,7 +606,6 @@ body:has(.editor) { background: #f5f5f5; }
 .source-card[hidden] { display: none; }
 .source-card[aria-labelledby="upload-title"] .card-icon { margin-bottom: 12px; }
 .source-card[aria-labelledby="upload-title"] .text-link { gap: 4px; color: #64748b; font-size: 12px; text-decoration: underline; text-underline-offset: 2px; }
-.source-card[aria-labelledby="upload-title"] #file-help { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0, 0, 0, 0); white-space: nowrap; }
 main.shell:has(.editor) { width: auto; max-width: none; margin: 24px 32px 0; padding: 0; }
 .editor { padding: 33px 49px 49px; border: 1px solid var(--line); border-radius: 16px; background: #fff; font-family: Archivo, Arial, Helvetica, sans-serif; }
 .editor-top { align-items: flex-start; }
@@ -690,4 +689,40 @@ main.shell:has(.editor) { width: auto; max-width: none; margin: 24px 32px 0; pad
   .source-card[aria-labelledby="upload-title"] { min-height: 200px; }
   .about-panel-body { padding: 14px; }
   .about-numbered-list li { padding: 14px; }
+}
+
+/* Keep the username control on the installed shadcn Input visual system. */
+.source-card[aria-labelledby="rss-title"] form { width: 100%; margin-top: 14px; }
+.source-card[aria-labelledby="rss-title"] [data-slot="field"] { gap: 8px; }
+.source-card[aria-labelledby="rss-title"] [data-slot="field-label"] { width: fit-content; margin: 0 auto; color: #111; font-size: 12px; font-weight: 600; }
+.source-card[aria-labelledby="rss-title"] [data-slot="input"] { height: 44px; min-height: 44px; padding: 9px 14px; border: 1px solid #c6cbbb; border-radius: 8px; background: #fff; color: #111; box-shadow: none; font: 400 14px Archivo, Arial, sans-serif; }
+.source-card[aria-labelledby="rss-title"] [data-slot="input"]::placeholder { color: #737373; }
+.source-card[aria-labelledby="rss-title"] [data-slot="input"]:focus-visible { border-color: #2047c7; outline: 0; box-shadow: 0 0 0 3px rgb(32 71 199 / 35%); }
+.source-card[aria-labelledby="rss-title"] [data-slot="input"][aria-invalid="true"] { border-color: #b42318; box-shadow: 0 0 0 3px rgb(180 35 24 / 14%); }
+.source-card[aria-labelledby="rss-title"] form [data-slot="button"] { width: 100%; min-height: 44px; margin-top: 10px; padding-inline: 16px; justify-content: space-between; background: #2047c7; color: #fff; font-size: 14px; }
+.source-card[aria-labelledby="rss-title"] form [data-slot="button"] svg { width: 16px; height: 16px; }
+.source-card[aria-labelledby="rss-title"] form [data-slot="button"]:hover:not(:disabled) { background: #1839a7; }
+
+/* Keep the credit text compact while retaining the linked attributions. */
+.credits-section.about-panel { border-radius: 12px; }
+.credits-section .about-panel-heading { padding: 16px; font-size: 14px; }
+.credits-section .about-panel-body { padding: 16px; font-size: 11px; line-height: 1.7; }
+.credits-section .about-panel-body p { margin: 0 0 3px; font-size: 11px; line-height: 1.7; }
+.credits-section .about-panel-body > p:nth-of-type(3) { margin-top: 12px; }
+.credits-section .about-panel-body p:last-child { margin-top: 8px; }
+.credits-section .about-disclaimer { border: 0; padding: 0; background: transparent; font-weight: 400; }
+.credits-section .tmdb-credit { margin: 2px 0; font-size: 11px; }
+.credits-section .tmdb-credit img { max-width: 80px; max-height: 18px; }
+
+/* Simple project credit footer from the updated design. */
+.site-footer.shell { max-width: none; min-height: 104px; margin-top: 24px; padding: 22px 32px; display: flex; align-items: center; justify-content: space-between; gap: 24px; border-top: 1px solid var(--line); background: #fff; }
+.site-footer .footer-brand .wordmark { color: #111; font: 750 27px/1 Archivo, Arial, sans-serif; letter-spacing: -1.3px; }
+.site-footer .footer-brand .wordmark span { color: var(--blue); }
+.site-footer .footer-brand p { max-width: none; margin: 8px 0 0; color: #64748b; font: 400 12px/1.4 Archivo, Arial, sans-serif; }
+.site-footer .footer-credit { margin: 0; color: #171717; font: 500 16px/1.4 Archivo, Arial, sans-serif; text-align: right; }
+.site-footer .footer-credit a { color: var(--blue); font-weight: 700; text-decoration: none; }
+.site-footer .footer-credit a:hover { text-decoration: underline; }
+@media (max-width: 700px) {
+  .site-footer.shell { padding: 22px; align-items: flex-start; flex-direction: column; gap: 14px; }
+  .site-footer .footer-credit { font-size: 14px; text-align: left; }
 }

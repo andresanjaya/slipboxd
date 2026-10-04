@@ -35,13 +35,13 @@ export function About() {
       })}</div></div>
     </section>
     <section className="about-panel credits-section" aria-labelledby="credits-heading"><h2 id="credits-heading" className="about-panel-heading">{t.about.creditsTitle}</h2><div className="about-panel-body">
-      <p>{t.about.creditsInspired.split("Receiptify")[0]}<a href={RECEIPTIFY_URL} target="_blank" rel="noopener noreferrer">Receiptify</a>{t.about.creditsInspired.split("Receiptify")[1]?.split("Michelle Liu")[0]}<a href={MICHELLE_URL} target="_blank" rel="noopener noreferrer">Michelle Liu</a>.</p>
       <p>{t.about.creditsData}</p><p className="about-disclaimer">{t.about.disclaimer}</p>
       <a className="tmdb-credit" href={TMDB_URL} target="_blank" rel="noopener noreferrer">
         <img src="/assets/tmdb-logo.svg" alt="The Movie Database (TMDB)"/>
         <span>{t.about.tmdbAttribution}</span>
       </a>
-      <p>{t.about.madeBy.replace("Andre Sanjaya.", "")}<a href={ANDRE_URL} target="_blank" rel="noopener noreferrer">Andre Sanjaya</a>.</p></div>
+      <p>{t.about.madeBy.replace("Andre Sanjaya.", "")}<a href={ANDRE_URL} target="_blank" rel="noopener noreferrer">Andre Sanjaya</a>.</p>
+      <p>{t.about.creditsInspired.split("Receiptify")[0]}<a href={RECEIPTIFY_URL} target="_blank" rel="noopener noreferrer">Receiptify</a>{t.about.creditsInspired.split("Receiptify")[1]?.split("Michelle Liu")[0]}<a href={MICHELLE_URL} target="_blank" rel="noopener noreferrer">Michelle Liu</a>.</p></div>
     </section>
     </div>
   </main>;
