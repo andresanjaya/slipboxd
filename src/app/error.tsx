@@ -1,5 +1,8 @@
 "use client";
 
+import { useLanguage } from "@/i18n/provider";
+
 export default function ErrorPage({ reset }: { reset: () => void }) {
-  return <main className="shell"><h1>Halaman belum berhasil dimuat.</h1><p>Coba lagi untuk membuka Slipboxd.</p><button onClick={reset}>Coba lagi</button></main>;
+  const { dictionary: t } = useLanguage();
+  return <main id="main" className="shell error-page"><h1>{t.globalError.title}</h1><p>{t.globalError.body}</p><button onClick={reset}>{t.globalError.retry}</button></main>;
 }

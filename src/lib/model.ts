@@ -67,13 +67,13 @@ export type ReceiptSettings = {
   period: string;
   sort: "newest" | "oldest" | "rating";
   count: 10 | 20;
-  template: "classic" | "ticket";
-  paper: "white" | "cream";
+  valueType: "rating" | "minute";
+  paper: "paper-bg-1" | "paper-bg-2" | "paper-bg-3" | "paper-bg-4";
 };
 
 export const defaultSettings: ReceiptSettings = {
   name: "", title: "My Movie Receipt", period: "all", sort: "newest",
-  count: 10, template: "classic", paper: "cream",
+  count: 10, valueType: "rating", paper: "paper-bg-2",
 };
 
 const compare = (a: string, b: string) => a < b ? -1 : a > b ? 1 : 0;
