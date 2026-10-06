@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
 import appLogo from "../../assets/logo.png";
+import { Analytics } from "@vercel/analytics/next";
 import { AppShell } from "@/components/site-chrome";
 import { LanguageProvider } from "@/i18n/provider";
 import "./globals.css";
@@ -17,5 +18,5 @@ export const metadata: Metadata = {
 };
 
 export default function RootLayout({ children }: Readonly<{ children: React.ReactNode }>) {
-  return <html lang="en" suppressHydrationWarning><body><LanguageProvider><AppShell>{children}</AppShell></LanguageProvider></body></html>;
+  return <html lang="en" suppressHydrationWarning><body><LanguageProvider><AppShell>{children}</AppShell></LanguageProvider><Analytics /></body></html>;
 }
