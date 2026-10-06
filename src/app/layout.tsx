@@ -1,4 +1,5 @@
 import type { Metadata } from "next";
+import appLogo from "../../assets/logo.png";
 import { AppShell } from "@/components/site-chrome";
 import { LanguageProvider } from "@/i18n/provider";
 import "./globals.css";
@@ -8,7 +9,10 @@ import "@fontsource/archivo/700.css";
 import "@fontsource/archivo/800.css";
 
 export const metadata: Metadata = {
-  title: "Slipboxd — Your films. Your receipt.",
+  icons: {
+    icon: appLogo.src,
+  },
+  title: "Slipboxd — Turn your Letterboxd diary into a receipt.",
   description: "Ubah diary Letterboxd menjadi struk film personal. Impor, sesuaikan, dan simpan sebagai PNG.",
 };
 
