@@ -22,6 +22,8 @@ test("Charts has its own navigation state and an import empty state", async ({ p
   await page.goto("/charts");
   await expect(page.locator(".site-nav").getByRole("link", { name: "Grafik" })).toHaveAttribute("aria-current", "page");
   await expect(page.getByText("Impor diary-mu untuk melihat grafik.")).toBeVisible();
+  const footerBottom = await page.locator("footer.site-footer").evaluate(element => Math.round(element.getBoundingClientRect().bottom));
+  expect(footerBottom).toBe(await page.evaluate(() => window.innerHeight));
   await page.getByRole("main").getByRole("link", { name: "Buat struk" }).click();
   await expect(page.getByRole("heading", { name: "Mulai dari diary-mu" })).toBeVisible();
 });

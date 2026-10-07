@@ -47,5 +47,5 @@ export function AppShell({ children }: { children: React.ReactNode }) {
     if (!description) { description = document.createElement("meta"); description.name = "description"; document.head.append(description); }
     description.content = about ? t.meta.aboutDescription : charts ? t.meta.chartsDescription : t.meta.homeDescription;
   }, [pathname, t]);
-  return <><SiteHeader/>{children}<SiteFooter/></>;
+  return <div className="app-shell"><SiteHeader/>{children}<SiteFooter/></div>;
 }

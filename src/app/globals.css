@@ -8,6 +8,10 @@
 @font-face { font-family: 'Merchant Copy'; src: url('/fonts/merchant-copy.ttf') format('truetype'); font-style: normal; font-weight: 700; font-display: block; }
 * { box-sizing: border-box; }
 body { margin: 0; background: var(--bg); color: var(--ink); font-size: 15px; line-height: 1.55; }
+.app-shell { display: flex; flex-direction: column; min-height: 100dvh; }
+.app-shell > main { flex: 1 0 auto; }
+.app-shell > .site-header,
+.app-shell > .site-footer { align-self: stretch; width: 100%; }
 button, input, select { font: inherit; }
 button, a, input, select { -webkit-tap-highlight-color: transparent; }
 button { min-height: 46px; padding: 11px 18px; border: 1px solid var(--ink); background: var(--ink); color: #fff; border-radius: 7px; cursor: pointer; font-weight: 600; }
