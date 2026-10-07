@@ -2,15 +2,18 @@
 
 import { useEffect, useMemo, useRef, useState, type FormEvent } from "react";
 import { availablePeriods, defaultSettings, safeFilename, selectEntries, type ImportResult, type ReceiptSettings, type WatchEntry } from "@/lib/model";
+import { useDiary } from "@/lib/diary-provider";
 import { formatMonth, formatNumber, formatRange, dictionaries, type Language } from "@/i18n";
 import { useLanguage } from "@/i18n/provider";
 import { Receipt } from "./receipt-v2";
 import { prepareReceiptAssets, receiptPng, savePng } from "@/lib/download";
-import { buildViewingProfile, genreLabel, tmdbCacheKey, type TmdbMovieMetadata, type TmdbMovieQuery } from "@/lib/tmdb";
+import { genreLabel, tmdbCacheKey, type TmdbMovieMetadata, type TmdbMovieQuery } from "@/lib/tmdb";
+import { availableDiaryYears, buildAnnualRecap, buildViewingProfile } from "@/lib/diary-insights";
 import { RECEIPT_BACKGROUNDS, type ReceiptBackgroundId } from "@/config/receipt-backgrounds";
 import { Button } from "@/components/ui/button";
 import { Field, FieldGroup, FieldLabel, FieldLegend, FieldSet } from "@/components/ui/field";
 import { Input } from "@/components/ui/input";
+import { AnnualRecapCard } from "./annual-recap-card";
 import { ArrowUpRight, CloudUpload, Download, Share2, UserRound } from "lucide-react";
 
 const exampleFilms = [
@@ -35,30 +38,31 @@ type Notice = "shared" | "share-fallback" | "downloaded" | null;
 
 export function SlipboxdApp({ rssEnabled, tmdbEnabled }: { rssEnabled: boolean; tmdbEnabled: boolean }) {
   const { language, dictionary: t } = useLanguage();
-  const [data, setData] = useState<ImportResult | null>(null);
+  const { data, metadata, metadataCache, setDiary, clearDiary, publishMetadata } = useDiary();
   const [settings, setSettings] = useState<ReceiptSettings>({ ...defaultSettings, title: dictionaries.en.receipt.defaultTitle });
   const [username, setUsername] = useState("");
   const [sourceTab, setSourceTab] = useState<"file" | "rss">("file");
   const [loading, setLoading] = useState<"file" | "rss" | null>(null);
   const [error, setError] = useState<AppError | null>(null);
   const [exporting, setExporting] = useState(false);
+  const [recapYear, setRecapYear] = useState(() => availableDiaryYears(data?.entries ?? [])[0] ?? "");
   const [exportError, setExportError] = useState(false);
+  const [recapExportError, setRecapExportError] = useState(false);
   const [notice, setNotice] = useState<Notice>(null);
   const [canShare, setCanShare] = useState(false);
   const [receiptAssetsReady, setReceiptAssetsReady] = useState(false);
   const [confirmReset, setConfirmReset] = useState(false);
-  const [metadata, setMetadata] = useState<Map<string, TmdbMovieMetadata>>(new Map());
   const [enriching, setEnriching] = useState(false);
   const [printedAt, setPrintedAt] = useState(() => new Date());
   const fileInput = useRef<HTMLInputElement>(null);
   const receipt = useRef<SVGSVGElement>(null);
+  const annualArtwork = useRef<SVGSVGElement>(null);
   const editorHeading = useRef<HTMLHeadingElement>(null);
   const sourceHeading = useRef<HTMLHeadingElement>(null);
   const cancelReset = useRef<HTMLButtonElement>(null);
   const switchButton = useRef<HTMLButtonElement>(null);
   const request = useRef<AbortController | null>(null);
   const enrichmentRequest = useRef<AbortController | null>(null);
-  const metadataCache = useRef(new Map<string, TmdbMovieMetadata>());
   const previousLanguage = useRef<Language>("en");
 
   useEffect(() => {
@@ -85,14 +89,15 @@ export function SlipboxdApp({ rssEnabled, tmdbEnabled }: { rssEnabled: boolean; 
     const controller = new AbortController();
     enrichmentRequest.current = controller;
     const periodEntries = data.entries.filter(entry => settings.period === "all" || entry.watchedDate.startsWith(settings.period));
+    const recapEntries = recapYear ? data.entries.filter(entry => entry.watchedDate.startsWith(`${recapYear}-`)) : [];
     const unique = new Map<string, TmdbMovieQuery>();
-    for (const entry of periodEntries) {
+    for (const entry of [...periodEntries, ...recapEntries]) {
       const key = tmdbCacheKey(entry.title, entry.releaseYear);
       unique.set(key, { key, title: entry.title, releaseYear: entry.releaseYear });
     }
     const missing = [...unique.values()].filter(movie => !metadataCache.current.has(movie.key));
-    const publish = () => setMetadata(new Map(metadataCache.current));
-    if (!missing.length) { publish(); return; }
+    const publish = () => publishMetadata();
+    if (!missing.length) { publish(); setEnriching(false); return; }
     setEnriching(true);
     void (async () => {
       try {
@@ -105,8 +110,7 @@ export function SlipboxdApp({ rssEnabled, tmdbEnabled }: { rssEnabled: boolean; 
           });
           if (!response.ok) throw new Error("TMDB enrichment unavailable");
           const payload = await response.json() as { results?: TmdbMovieMetadata[] };
-          for (const result of payload.results ?? []) metadataCache.current.set(result.key, result);
-          publish();
+          publishMetadata(payload.results ?? []);
         }
       } catch {
         if (!controller.signal.aborted) publish();
@@ -115,10 +119,12 @@ export function SlipboxdApp({ rssEnabled, tmdbEnabled }: { rssEnabled: boolean; 
       }
     })();
     return () => controller.abort();
-  }, [data, settings.period, tmdbEnabled]);
+  }, [data, settings.period, recapYear, tmdbEnabled, metadataCache, publishMetadata]);
 
   function accept(result: ImportResult) {
-    setData(result);
+    enrichmentRequest.current?.abort();
+    setDiary(result);
+    setRecapYear(availableDiaryYears(result.entries)[0] ?? "");
     setSettings({ ...defaultSettings, title: t.receipt.defaultTitle, name: result.username ?? "" });
     setError(null); setNotice(null);
   }
@@ -168,9 +174,9 @@ export function SlipboxdApp({ rssEnabled, tmdbEnabled }: { rssEnabled: boolean; 
   function resetSource() {
     request.current?.abort();
     enrichmentRequest.current?.abort();
-    metadataCache.current.clear(); setMetadata(new Map()); setEnriching(false);
-    setData(null); setSettings({ ...defaultSettings, title: t.receipt.defaultTitle }); setUsername(""); setError(null);
-    setExportError(false); setNotice(null); setConfirmReset(false);
+    clearDiary(); setEnriching(false);
+    setSettings({ ...defaultSettings, title: t.receipt.defaultTitle }); setUsername(""); setError(null); setRecapYear("");
+    setExportError(false); setRecapExportError(false); setNotice(null); setConfirmReset(false);
     setTimeout(() => sourceHeading.current?.focus(), 0);
   }
 
@@ -194,12 +200,34 @@ export function SlipboxdApp({ rssEnabled, tmdbEnabled }: { rssEnabled: boolean; 
     finally { setExporting(false); }
   }
 
+  async function downloadAnnualRecap(share = false) {
+    if (!annualArtwork.current || !recapYear) return;
+    setExporting(true); setRecapExportError(false); setNotice(null);
+    try {
+      const blob = await receiptPng(annualArtwork.current);
+      const filename = `slipboxd-annual-recap-${recapYear}.png`;
+      const file = new File([blob], filename, { type: "image/png" });
+      if (share && navigator.canShare?.({ files: [file] })) {
+        try { await navigator.share({ files: [file], title: `${t.annualRecap.title} ${recapYear}` }); setNotice("shared"); }
+        catch (caught) {
+          if (caught instanceof Error && caught.name === "AbortError") return;
+          savePng(blob, filename); setNotice("share-fallback");
+        }
+      } else { savePng(blob, filename); setNotice("downloaded"); }
+    } catch { setRecapExportError(true); }
+    finally { setExporting(false); }
+  }
+
   const periods = data ? availablePeriods(data.entries) : null;
   const selected = data ? selectEntries(data.entries, settings) : null;
   const selectedPeriodEntries = useMemo(() => data?.entries.filter(entry => settings.period === "all" || entry.watchedDate.startsWith(settings.period)) ?? [], [data, settings.period]);
   const profile = useMemo(() => buildViewingProfile(selectedPeriodEntries, metadata), [selectedPeriodEntries, metadata]);
-  const matchedCount = profile.matched;
-  const failedCount = profile.analyzed - profile.matched;
+  const recapYears = useMemo(() => availableDiaryYears(data?.entries ?? []), [data]);
+  const annualRecap = useMemo(() => buildAnnualRecap(data?.entries ?? [], metadata, recapYear), [data, metadata, recapYear]);
+  const matchedCount = profile.genresAvailable;
+  const failedCount = profile.uniqueFilms - profile.genresAvailable;
+  const maxGenreCount = Math.max(1, ...profile.topGenres.map(genre => genre.count));
+  const maxRatingCount = Math.max(1, ...profile.ratingDistribution.map(bucket => bucket.count));
   const rated = data?.entries.some(entry => entry.rating !== undefined);
   const errorMessage = error ? error.code === "username-invalid" ? t.usernameInvalid : t.errors[error.code] ?? (error.mode === "file" ? t.errorFallback : t.rssFallback) : "";
   const noticeMessage = notice === "shared" ? t.editor.shared : notice === "share-fallback" ? t.editor.shareFallback : notice === "downloaded" ? t.editor.downloaded : "";
@@ -245,20 +273,23 @@ export function SlipboxdApp({ rssEnabled, tmdbEnabled }: { rssEnabled: boolean; 
       {confirmReset && <div className="confirm-box" role="region" aria-label={t.editor.confirmLabel}><p>{t.editor.confirm}</p><div className="button-row"><button className="secondary" ref={cancelReset} onClick={() => { setConfirmReset(false); switchButton.current?.focus(); }}>{t.editor.cancel}</button><button onClick={resetSource}>{t.editor.confirmSwitch}</button></div></div>}
       <div className="editor-grid">
         <div className="editor-preview-column">
-          <div className="preview-stage"><div className="preview-label"><span>{t.editor.livePreview}</span><span>{t.editor.rowsUpper(formatNumber(selected?.rows.length ?? 0, t))}</span></div><div className={`receipt-paper ${receiptAssetsReady ? "" : "receipt-loading"}`}>{receiptAssetsReady && <Receipt ref={receipt} entries={data.entries} settings={settings} source={data.source} dictionary={t} metadata={metadata} printedAt={printedAt}/>}</div><p className="small muted">{t.editor.previewHelp}</p></div>
+          <div className="preview-stage"><div className="preview-label"><span>{t.editor.livePreview}</span><span>{t.editor.rowsUpper(formatNumber(selected?.rows.length ?? 0, t))}</span></div><div className={`receipt-paper${receiptAssetsReady ? "" : " receipt-loading"}`}>{receiptAssetsReady && <Receipt ref={receipt} entries={data.entries} settings={settings} source={data.source} dictionary={t} metadata={metadata} printedAt={printedAt}/>}</div><p className="small muted">{t.editor.previewHelp}</p></div>
           <section className="viewing-profile" aria-labelledby="viewing-profile-title">
             <h2 id="viewing-profile-title">{t.viewingProfile.title}</h2>
             <div className="profile-body"><p className="eyebrow">{t.viewingProfile.eyebrow}</p>
-            {enriching ? <p role="status">{t.viewingProfile.loading}</p> : !tmdbEnabled || !profile.reliable ? <>
-              <p>{t.viewingProfile.insufficient}</p>
-              <p className="small muted">{t.viewingProfile.coverage(formatNumber(profile.analyzed, t), formatNumber(profile.matched, t))}</p>
-            </> : <>
-              <h3>{t.viewingProfile.headlines[profile.rule]}</h3>
-              <div className="genre-bars">{profile.topGenres.map(genre => <div key={genre.id}><span>{genreLabel(genre, language)}</span><strong>{formatNumber(genre.percentage, t)}%</strong><i style={{ width: `${genre.percentage}%` }}/></div>)}</div>
-              <p>{t.viewingProfile.description(profile.topGenres.map(genre => genreLabel(genre, language)).join(", "))}</p>
-              <p className="small muted">{t.viewingProfile.coverage(formatNumber(profile.analyzed, t), formatNumber(profile.matched, t))}</p>
-            </>}</div>
+            <div className="profile-summary"><p>{t.viewingProfile.sessions(formatNumber(profile.sessions, t))}</p><p>{t.viewingProfile.uniqueFilms(formatNumber(profile.uniqueFilms, t))}</p></div>
+            <div className="profile-ratings"><div className="profile-section-title"><h3>{t.viewingProfile.ratingDistribution}</h3><strong>{profile.averageRating === undefined ? t.viewingProfile.noRatings : `${t.viewingProfile.averageRating}: ${formatNumber(profile.averageRating, t, 1)}`}</strong></div>
+              <div className="rating-distribution" aria-label={t.viewingProfile.ratingDistribution}>{profile.ratingDistribution.map(bucket => <div className="rating-bucket" key={bucket.rating} title={`${formatNumber(bucket.rating, t, 1)}: ${formatNumber(bucket.count, t)}`}><span>{formatNumber(bucket.rating, t, 1)}</span><i style={{ height: `${bucket.count / maxRatingCount * 100}%` }}/><strong>{formatNumber(bucket.count, t)}</strong></div>)}</div>
+              <p className="small muted">{t.viewingProfile.ratedEntries(formatNumber(profile.ratingsCount, t))}</p>
+            </div>
+            <div className="profile-genres"><div className="profile-section-title"><h3>{t.viewingProfile.topGenres}</h3>{enriching && <span role="status">{t.viewingProfile.loading}</span>}</div>
+              {profile.topGenres.length ? <div className="genre-bars">{profile.topGenres.map(genre => <div key={genre.id}><span>{genreLabel(genre, language)}</span><strong>{formatNumber(genre.count, t)}</strong><i style={{ width: `${genre.count / maxGenreCount * 100}%` }}/></div>)}</div> : <p>{tmdbEnabled && enriching ? t.viewingProfile.loading : t.viewingProfile.noGenreData}</p>}
+              <p className="small muted">{t.viewingProfile.genreCoverage(formatNumber(profile.genresAvailable, t), formatNumber(profile.uniqueFilms, t))}</p>
+              {profile.genresAvailable < profile.uniqueFilms && !enriching && <p className="small muted">{t.viewingProfile.incompleteMetadata}</p>}
+              {data.source === "rss" && <p className="small muted">{t.viewingProfile.recentRss}</p>}
+            </div></div>
           </section>
+          <AnnualRecapCard data={annualRecap} year={recapYear} years={recapYears} source={data.source} backgroundUrl={RECEIPT_BACKGROUNDS[settings.paper]} dictionary={t} onYearChange={setRecapYear} onExport={share => void downloadAnnualRecap(share)} canShare={canShare} disabled={!receiptAssetsReady || enriching || !recapYear || !annualRecap.sessions} exporting={exporting} error={recapExportError} artworkRef={annualArtwork}/>
         </div>
         <div className="controls"><h2 className="controls-heading">{t.editor.settingsHeading}</h2><div className="controls-body"><FieldSet disabled={exporting}><FieldLegend><span className="step">01</span> {t.editor.content}</FieldLegend>
           <FieldGroup>

@@ -23,3 +23,18 @@ test("both dictionaries provide every parser and RSS recovery message used by th
   const codes = ["too-large", "csv-corrupt", "csv-columns", "no-dates", "zip-corrupt", "zip-ambiguous", "zip-missing", "zip-unsupported", "zip-encrypted", "file-type", "file-corrupt", "username", "rss-not-found", "rss-unavailable", "rss-upstream", "rss-large", "rss-empty", "rss-format", "rss-no-diary", "rss-timeout", "rss-network", "rss-disabled"];
   for (const language of ["id", "en"] as const) for (const code of codes) assert.ok(dictionaries[language].errors[code], `${language}.${code}`);
 });
+
+test("Viewing Profile and Annual Recap labels are present in both languages", () => {
+  assert.equal(dictionaries.en.viewingProfile.title, "Viewing Profile");
+  assert.equal(dictionaries.id.viewingProfile.title, "Profil Menonton");
+  assert.equal(dictionaries.en.annualRecap.title, "Annual Recap");
+  assert.equal(dictionaries.id.annualRecap.title, "Rekap Tahunan");
+  for (const language of ["en", "id"] as const) {
+    const dictionary = dictionaries[language];
+    assert.ok(dictionary.viewingProfile.recentRss);
+    assert.ok(dictionary.viewingProfile.incompleteMetadata);
+    assert.ok(dictionary.annualRecap.emptyBody("2025"));
+    assert.ok(dictionary.annualRecap.exportFailed);
+  }
+  assert.notEqual(dictionaries.en.annualRecap.noYearBody, dictionaries.id.annualRecap.noYearBody);
+});

@@ -27,6 +27,7 @@ type Props = {
   metadata?: ReadonlyMap<string, TmdbMovieMetadata>;
   printedAt?: Date;
   example?: boolean;
+  showBackground?: boolean;
 };
 
 function periodHeading(settings: ReceiptSettings, rows: WatchEntry[], locale: string): string {
@@ -49,7 +50,7 @@ function printedDate(value: Date, locale: string): string {
 }
 
 export const Receipt = forwardRef<SVGSVGElement, Props>(function Receipt(
-  { entries, settings, source, dictionary: t, metadata = new Map(), printedAt = new Date(), example },
+  { entries, settings, source, dictionary: t, metadata = new Map(), printedAt = new Date(), example, showBackground = true },
   ref,
 ) {
   const { rows, sessions, unique } = selectEntries(entries, settings);
@@ -77,7 +78,7 @@ export const Receipt = forwardRef<SVGSVGElement, Props>(function Receipt(
     role="img" aria-label={`${example ? t.receipt.examplePrefix : ""}${t.receipt.aria(receiptTitle, rowCount, sessionCount, uniqueCount)}`}>
     <title>{receiptTitle}</title>
     <desc>{rows.map(entry => entry.title).join("; ")}</desc>
-    <image data-receipt-asset data-receipt-background href={RECEIPT_BACKGROUNDS[settings.paper]} width="440" height={height} preserveAspectRatio="xMidYMid slice"/>
+    {showBackground && <image data-receipt-asset data-receipt-background href={RECEIPT_BACKGROUNDS[settings.paper]} width="440" height={height} preserveAspectRatio="xMidYMid slice"/>}
     <g fill="#34362e" fontFamily="'Merchant Copy', monospace" fontWeight="400">
       <image data-receipt-asset href="/assets/figma-letterboxd-logo.svg" x="151" y="30" width="138" height="65.5" preserveAspectRatio="xMidYMid meet"/>
       <text x="220" y="129" textAnchor="middle" fontSize="19.33" letterSpacing="6.9">{heading}</text>

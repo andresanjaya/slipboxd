@@ -17,6 +17,7 @@ export function SiteHeader() {
       <div className="header-actions">
         <nav className="site-nav" aria-label={t.nav.primary}>
           <Link href="/" aria-current={pathname === "/" ? "page" : undefined}>{t.nav.create}</Link>
+          <Link href="/charts" aria-current={pathname === "/charts" ? "page" : undefined}>{t.nav.charts}</Link>
           <Link href="/about" aria-current={pathname === "/about" ? "page" : undefined}>{t.nav.about}</Link>
         </nav>
         <div className="language-toggle" role="group" aria-label={t.nav.language}>
@@ -40,10 +41,11 @@ export function AppShell({ children }: { children: React.ReactNode }) {
   const { dictionary: t } = useLanguage();
   useEffect(() => {
     const about = pathname === "/about";
-    document.title = about ? t.meta.aboutTitle : t.meta.homeTitle;
+    const charts = pathname === "/charts";
+    document.title = about ? t.meta.aboutTitle : charts ? t.meta.chartsTitle : t.meta.homeTitle;
     let description = document.querySelector<HTMLMetaElement>('meta[name="description"]');
     if (!description) { description = document.createElement("meta"); description.name = "description"; document.head.append(description); }
-    description.content = about ? t.meta.aboutDescription : t.meta.homeDescription;
+    description.content = about ? t.meta.aboutDescription : charts ? t.meta.chartsDescription : t.meta.homeDescription;
   }, [pathname, t]);
   return <><SiteHeader/>{children}<SiteFooter/></>;
 }

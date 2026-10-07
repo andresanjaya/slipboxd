@@ -5,7 +5,7 @@ const REQUEST_TIMEOUT_MS = 7_000;
 const PARALLEL_REQUESTS = 3;
 
 type SearchResult = { id?: unknown; title?: unknown; original_title?: unknown; release_date?: unknown };
-type DetailsResult = { title?: unknown; release_date?: unknown; runtime?: unknown; genres?: unknown };
+type DetailsResult = { title?: unknown; release_date?: unknown; runtime?: unknown; genres?: unknown; credits?: { crew?: unknown } };
 
 function releaseYear(value: unknown): number | undefined {
   if (typeof value !== "string") return;
@@ -48,6 +48,7 @@ async function enrichOne(query: TmdbMovieQuery, token: string, fetcher: typeof f
     if (!Number.isInteger(match.id)) return { ...fallback, status: "unmatched" };
     const detailsUrl = new URL(`/3/movie/${match.id}`, TMDB_ORIGIN);
     detailsUrl.searchParams.set("language", "en-US");
+    detailsUrl.searchParams.set("append_to_response", "credits");
     const details = await tmdbJson(detailsUrl, token, fetcher) as DetailsResult;
     const genres = Array.isArray(details.genres) ? details.genres.flatMap(value => {
       if (!value || typeof value !== "object") return [];
@@ -55,8 +56,14 @@ async function enrichOne(query: TmdbMovieQuery, token: string, fetcher: typeof f
       return Number.isInteger(genre.id) && typeof genre.name === "string" ? [{ id: genre.id as number, name: genre.name }] : [];
     }) : [];
     const runtime = Number.isInteger(details.runtime) && Number(details.runtime) > 0 ? Number(details.runtime) : undefined;
+    const directors = Array.isArray(details.credits?.crew) ? [...new Map(details.credits.crew.flatMap(value => {
+      if (!value || typeof value !== "object") return [];
+      const credit = value as { id?: unknown; name?: unknown; job?: unknown };
+      return credit.job === "Director" && Number.isInteger(credit.id) && typeof credit.name === "string" && credit.name.trim()
+        ? [[credit.id as number, { id: credit.id as number, name: credit.name.trim() }] as const] : [];
+    })).values()] : [];
     return { ...query, tmdbId: match.id as number, matchedTitle: typeof details.title === "string" ? details.title : typeof match.title === "string" ? match.title : query.title,
-      matchedReleaseYear: releaseYear(details.release_date) ?? releaseYear(match.release_date), genres, runtime, status: "matched" };
+      matchedReleaseYear: releaseYear(details.release_date) ?? releaseYear(match.release_date), genres, directors, runtime, status: "matched" };
   } catch { return { ...fallback, status: "error" }; }
 }
 

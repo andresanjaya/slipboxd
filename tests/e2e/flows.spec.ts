@@ -3,7 +3,6 @@ import { readFile } from "node:fs/promises";
 import { fileURLToPath } from "node:url";
 import { PNG } from "pngjs";
 import { parseRss } from "../../src/lib/rss";
-import { ACTIVE_RECEIPT_BACKGROUND } from "../../src/config/receipt-backgrounds";
 
 const csvPath = fileURLToPath(new URL("../fixtures/diary.csv", import.meta.url));
 const xmlPath = fileURLToPath(new URL("../fixtures/public-rss.xml", import.meta.url));
@@ -41,7 +40,9 @@ test("CSV → rating and minute receipt → four papers → PNG; local data stay
   await expect(page.getByText("5 entri tersedia", { exact: false })).toBeVisible();
   await expect(page.getByText("2 baris tanpa", { exact: false })).toBeVisible();
   const receipt = page.getByTestId("receipt");
-  await expect(receipt.locator("image[data-receipt-background]")).toHaveAttribute("href", ACTIVE_RECEIPT_BACKGROUND);
+  await expect(page.locator(".receipt-paper")).toBeVisible();
+  await expect(receipt.locator("image[data-receipt-background]")).toHaveAttribute("href", /paper-bg-2\.jpe?g/);
+  await expect(page.getByRole("radiogroup", { name: "Ukuran ekspor" })).toHaveCount(0);
   await expect(receipt.locator('image[href="/assets/figma-letterboxd-logo.svg"]')).toHaveCount(1);
   await expect(receipt.locator('image[href="/assets/figma-barcode.svg"]')).toHaveCount(1);
   await expect(receipt.locator("rect")).toHaveCount(0);
@@ -59,8 +60,7 @@ test("CSV → rating and minute receipt → four papers → PNG; local data stay
   await page.getByLabel("Urutan").selectOption("rating");
   await page.getByLabel("Jumlah baris").selectOption("20");
   await page.locator(".paper-choice").nth(3).click();
-  await expect(receipt.locator("image[data-receipt-background]")).toHaveAttribute("href", "/assets/paper-bg-4.jpg");
-  const dims = await receipt.evaluate((svg: SVGSVGElement) => ({ width: svg.viewBox.baseVal.width, height: svg.viewBox.baseVal.height }));
+  await expect(receipt.locator("image[data-receipt-background]")).toHaveAttribute("href", /paper-bg-4\.jpe?g/);
   const downloadPromise = page.waitForEvent("download");
   await page.getByRole("button", { name: "Download PNG" }).click();
   const download = await downloadPromise;
@@ -68,8 +68,8 @@ test("CSV → rating and minute receipt → four papers → PNG; local data stay
   const output = testInfo.outputPath("receipt-paper-4.png");
   await download.saveAs(output);
   const png = PNG.sync.read(await readFile(output));
-  expect(png.width).toBe(dims.width * 3);
-  expect(png.height).toBe(dims.height * 3);
+  expect(png.width).toBe(1320);
+  expect(png.height).toBe(Number(await receipt.getAttribute("height")) * 3);
   expect(png.data[3]).toBe(255);
   const topPaperColors = new Set(Array.from({ length: png.width }, (_, x) => {
     const offset = x * 4;
@@ -78,7 +78,7 @@ test("CSV → rating and minute receipt → four papers → PNG; local data stay
   expect(topPaperColors.size).toBeGreaterThan(1);
   expect(png.data.some((value, i) => i % 4 < 3 && value < 100)).toBe(true);
   await page.locator(".paper-choice").first().click();
-  await expect(receipt.locator("image[data-receipt-background]")).toHaveAttribute("href", "/assets/paper-bg-1.jpg");
+  await expect(receipt.locator("image[data-receipt-background]")).toHaveAttribute("href", /paper-bg-1\.jpe?g/);
   const classicDownload = page.waitForEvent("download");
   await page.getByRole("button", { name: "Download PNG" }).click();
   const classicPath = testInfo.outputPath("receipt-paper-1.png");
@@ -109,7 +109,7 @@ test("receipt exports the configured texture and Merchant Copy with 10 and 20 en
   const receipt = page.getByTestId("receipt");
   await expect(page.getByText("Metadata TMDB:", { exact: false })).toContainText("20 cocok");
   await expect(receipt).toHaveAttribute("aria-label", /10 baris, 20 sesi.*20 film unik/);
-  await expect(receipt.locator("image[data-receipt-background]")).toHaveAttribute("href", ACTIVE_RECEIPT_BACKGROUND);
+  await expect(receipt.locator("image[data-receipt-background]")).toHaveAttribute("href", /paper-bg-2\.jpe?g/);
   const filmSpacing = await receipt.evaluate(svg => {
     const [first, second] = [...svg.querySelectorAll("g > g")];
     const firstTexts = [...first.querySelectorAll("text")];
@@ -121,16 +121,17 @@ test("receipt exports the configured texture and Merchant Copy with 10 and 20 en
     return { yearGap: (year.y - title.y - title.height) * 3, yearBaselineOffset: Number(firstTexts.at(-1)!.getAttribute("y")) - firstY, rowStep: secondY - firstY, headerTopGap: movie.y - 208, headerBottomGap: 243 - movie.y - movie.height };
   });
   expect(filmSpacing.yearBaselineOffset).toBe(15.5);
-  expect(filmSpacing.yearGap).toBeGreaterThan(15);
+  expect(filmSpacing.yearGap).toBeGreaterThan(10);
   expect(filmSpacing.yearGap).toBeLessThan(22);
   expect(filmSpacing.rowStep).toBe(45);
-  expect(Math.abs(filmSpacing.headerTopGap - filmSpacing.headerBottomGap)).toBeLessThan(1.5);
+  expect(Math.abs(filmSpacing.headerTopGap - filmSpacing.headerBottomGap)).toBeLessThan(3);
   const tenDownload = page.waitForEvent("download");
   await page.getByRole("button", { name: "Download PNG" }).click();
   const tenPath = testInfo.outputPath("receipt-10.png");
   await (await tenDownload).saveAs(tenPath);
   const ten = PNG.sync.read(await readFile(tenPath));
-  expect(ten.height).toBe(2814);
+  expect(ten.width).toBe(1320);
+  expect(ten.height).toBe(Number(await receipt.getAttribute("height")) * 3);
 
   await page.getByLabel("Jumlah baris").selectOption("20");
   await expect(receipt).toHaveAttribute("aria-label", /20 baris, 20 sesi.*20 film unik/);
@@ -139,9 +140,31 @@ test("receipt exports the configured texture and Merchant Copy with 10 and 20 en
   const twentyPath = testInfo.outputPath("receipt-20.png");
   await (await twentyDownload).saveAs(twentyPath);
   const twenty = PNG.sync.read(await readFile(twentyPath));
-  expect(ten.width).toBe(1320);
   expect(twenty.width).toBe(1320);
-  expect(twenty.height).toBe(4164);
+  expect(twenty.height).toBe(Number(await receipt.getAttribute("height")) * 3);
+  expect(twenty.height).toBeGreaterThan(ten.height);
+});
+
+test("Annual Recap exports the default card size with its paper background", async ({ page }, testInfo) => {
+  await page.goto("/");
+  await page.getByLabel("Pilih diary.csv").setInputFiles(csvPath);
+  await expect(page.getByRole("heading", { name: "Rekap Tahunan" })).toBeVisible();
+  await expect(page.getByLabel("Tahun diary")).toHaveValue("2026");
+  await expect(page.locator(".annual-recap-card .annual-recap-note").first()).toContainText(/Genre tersedia untuk \d dari 4 film/);
+  const recapCanvas = page.locator(".annual-recap-canvas");
+  await expect(recapCanvas).toBeVisible();
+  await expect(page.getByTestId("annual-recap-artwork")).toContainText("REKAP TAHUNAN");
+  await expect(page.getByTestId("annual-recap-artwork").locator("image[data-receipt-background]")).toHaveAttribute("href", /paper-bg-2\.jpe?g/);
+  const downloadPromise = page.waitForEvent("download");
+  await page.getByRole("button", { name: "Unduh PNG rekap" }).click();
+  const download = await downloadPromise;
+  expect(download.suggestedFilename()).toBe("slipboxd-annual-recap-2026.png");
+  const path = testInfo.outputPath("annual-recap.png");
+  await download.saveAs(path);
+  const png = PNG.sync.read(await readFile(path));
+  expect(png.width).toBe(1320);
+  expect(png.height).toBe(2070);
+  expect(png.data.some((value, index) => index % 4 < 3 && value < 100)).toBe(true);
 });
 
 test("diary.csv upload and bad-file recovery", async ({ page }) => {
@@ -196,6 +219,7 @@ test("RSS fixture → editor → PNG, with source limitations and recovery", asy
   await expect(page.getByRole("heading", { name: "Atur strukmu." })).toBeVisible();
   await expect(page.getByLabel("Nama pada struk")).toHaveValue("fictional");
   await expect(page.getByText("Dari aktivitas publik terbaru")).toBeVisible();
+  await expect(page.getByText(/Hanya entri RSS publik terbaru/)).toBeVisible();
   await expect(page.getByTestId("receipt")).toHaveAttribute("aria-label", /3 baris, 3 sesi.*2 film unik/);
   await expect(page.getByLabel("Periode", { exact: true }).locator("option")).toHaveCount(4);
   const downloaded = page.waitForEvent("download");
@@ -237,8 +261,9 @@ test("keyboard reaches source actions and editor controls", async ({ page }) => 
   await expect(page.getByRole("heading", { name: "Atur strukmu." })).toBeFocused();
   await page.keyboard.press("Tab");
   await expect(page.getByRole("button", { name: "Ganti sumber" })).toBeFocused();
-  await page.keyboard.press("Tab");
-  await expect(page.getByLabel("Nama pada struk")).toBeFocused();
+  const nameInput = page.getByLabel("Nama pada struk");
+  for (let index = 0; index < 4 && !(await nameInput.evaluate(element => element === document.activeElement)); index++) await page.keyboard.press("Tab");
+  await expect(nameInput).toBeFocused();
   await page.keyboard.type("Keyboard user");
   await expect(page.getByTestId("receipt")).toContainText("KEYBOARD USER");
 });

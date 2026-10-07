@@ -1,8 +1,7 @@
 import test from "node:test";
 import assert from "node:assert/strict";
 import { enrichTmdbMovies } from "../src/lib/tmdb-server";
-import { buildViewingProfile, tmdbCacheKey, type TmdbMovieMetadata } from "../src/lib/tmdb";
-import type { WatchEntry } from "../src/lib/model";
+import { tmdbCacheKey, type TmdbMovieMetadata } from "../src/lib/tmdb";
 
 function json(value: unknown, status = 200): Response {
   return new Response(JSON.stringify(value), { status, headers: { "Content-Type": "application/json" } });
@@ -39,6 +38,23 @@ test("TMDB matching considers the original title", async () => {
   assert.equal(result.tmdbId, 42);
 });
 
+test("TMDB movie details include Director crew credits without counting other jobs", async () => {
+  const calls: URL[] = [];
+  const fetcher = (async (input: string | URL | Request) => {
+    const url = new URL(String(input));
+    calls.push(url);
+    return url.pathname === "/3/search/movie"
+      ? json({ results: [{ id: 42, title: "Film A", release_date: "1999-01-01" }] })
+      : json({ title: "Film A", release_date: "1999-01-01", genres: [], credits: { crew: [
+        { id: 1, name: "Director One", job: "Director" }, { id: 2, name: "Director Two", job: "Director" },
+        { id: 1, name: "Director One", job: "Director" }, { id: 3, name: "Editor", job: "Editor" },
+      ] } });
+  }) as typeof fetch;
+  const [result] = await enrichTmdbMovies([{ key: tmdbCacheKey("Film A", 1999), title: "Film A", releaseYear: 1999 }], "secret", fetcher);
+  assert.equal(calls[1].searchParams.get("append_to_response"), "credits");
+  assert.deepEqual(result.directors, [{ id: 1, name: "Director One" }, { id: 2, name: "Director Two" }]);
+});
+
 test("TMDB enrichment leaves ambiguous and missing films unmatched", async () => {
   let searches = 0;
   const fetcher = (async () => {
@@ -54,27 +70,4 @@ test("TMDB enrichment leaves ambiguous and missing films unmatched", async () =>
   assert.equal(ambiguous.status, "ambiguous");
   assert.equal(missing.status, "unmatched");
   assert.equal(ambiguous.runtime, undefined);
-});
-
-test("viewing profile is deterministic and counts partial matches", () => {
-  const entries: WatchEntry[] = [
-    { source: "export", filmKey: "1", title: "One", releaseYear: 2020, watchedDate: "2026-09-01" },
-    { source: "export", filmKey: "2", title: "Two", releaseYear: 2021, watchedDate: "2026-09-02" },
-    { source: "export", filmKey: "3", title: "Three", releaseYear: 2022, watchedDate: "2026-09-03" },
-    { source: "export", filmKey: "4", title: "Missing", releaseYear: 2023, watchedDate: "2026-09-04" },
-  ];
-  const metadata = new Map<string, TmdbMovieMetadata>();
-  const matched = (entry: WatchEntry, genres: TmdbMovieMetadata["genres"]): TmdbMovieMetadata => ({
-    key: tmdbCacheKey(entry.title, entry.releaseYear), title: entry.title, releaseYear: entry.releaseYear, genres, runtime: 100, status: "matched",
-  });
-  metadata.set(tmdbCacheKey("One", 2020), matched(entries[0], [{ id: 18, name: "Drama" }, { id: 10749, name: "Romance" }]));
-  metadata.set(tmdbCacheKey("Two", 2021), matched(entries[1], [{ id: 18, name: "Drama" }]));
-  metadata.set(tmdbCacheKey("Three", 2022), matched(entries[2], [{ id: 53, name: "Thriller" }]));
-  metadata.set(tmdbCacheKey("Missing", 2023), { key: tmdbCacheKey("Missing", 2023), title: "Missing", releaseYear: 2023, genres: [], status: "unmatched" });
-  const profile = buildViewingProfile(entries, metadata);
-  assert.equal(profile.analyzed, 4);
-  assert.equal(profile.matched, 3);
-  assert.equal(profile.reliable, true);
-  assert.equal(profile.rule, "drama-romance");
-  assert.deepEqual(profile.topGenres.map(genre => [genre.name, genre.percentage]), [["Drama", 50], ["Thriller", 25], ["Romance", 25]]);
 });

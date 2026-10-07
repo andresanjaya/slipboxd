@@ -5,8 +5,8 @@ export type FaqItem = { question: string; answer: string[]; steps?: string[]; ex
 export type Dictionary = {
   locale: string;
   languageName: string;
-  nav: { create: string; about: string; language: string; homeLabel: string; skip: string; primary: string; footer: string };
-  meta: { homeTitle: string; homeDescription: string; aboutTitle: string; aboutDescription: string };
+  nav: { create: string; charts: string; about: string; language: string; homeLabel: string; skip: string; primary: string; footer: string };
+  meta: { homeTitle: string; homeDescription: string; chartsTitle: string; chartsDescription: string; aboutTitle: string; aboutDescription: string };
   header: { note: string; edition: string };
   footer: { disclaimer: string; note: string; madeBy: string; about: string; export: string; receiptify: string; privacy: string; signoff: string };
   landing: {
@@ -44,8 +44,28 @@ export type Dictionary = {
   };
   viewingProfile: {
     title: string; eyebrow: string; loading: string; insufficient: string;
-    coverage: (analyzed: string, matched: string) => string; description: (genres: string) => string;
-    headlines: Record<"drama-romance" | "drama-thriller" | "comedy-romance" | "speculative" | "documentary" | "animation-family" | "general", string>;
+    sessions: (count: string) => string; uniqueFilms: (count: string) => string;
+    averageRating: string; noRatings: string; ratedEntries: (count: string) => string; ratingDistribution: string;
+    topGenres: string; genreCoverage: (available: string, total: string) => string; incompleteMetadata: string; recentRss: string; noGenreData: string;
+    genreFilms: (count: string) => string;
+  };
+  annualRecap: {
+    title: string; selectYear: string; noYear: string; noYearBody: string; emptyTitle: string; emptyBody: (year: string) => string;
+    uniqueFilms: string; sessions: string; mostActiveMonth: string; noMonth: string; topGenres: string;
+    averageRating: string; noRatings: string; ratedEntries: (count: string) => string; ratingDistribution: string;
+    genreCoverage: (available: string, total: string) => string; incompleteMetadata: string; recentRss: string; noGenreData: string;
+    genreFilms: (count: string) => string;
+    download: string; share: string; preparing: string; exportFailed: string;
+  };
+  charts: {
+    eyebrow: string; title: string; description: string; periodTitle: string; periodDescription: string;
+    allDiary: string; fourWeeks: string; sixMonths: string; thisYear: string; selectYear: string; noDiary: string; noPeriod: string; createReceipt: string;
+    rssNote: string; loadingMetadata: string; metadataUnavailable: string; entryCount: (count: string) => string;
+    topGenres: string; genresDescription: string; genreCoverage: (count: string) => string; noGenres: string;
+    diaryActivity: string; activityDescription: string; activityValue: (month: string, count: string) => string;
+    ratingDistribution: string; ratingsDescription: string; ratedEntries: (count: string) => string; noRatings: string;
+    releaseDecades: string; decadesDescription: string; decadeLabel: (decade: number) => string; noDecades: string;
+    mostWatchedDirectors: string; directorsDescription: string; directorCoverage: (count: string) => string; noDirectors: string;
   };
   errors: Record<string, string>;
   errorFallback: string;

@@ -17,6 +17,13 @@ test("navigator language default, manual choice, document lang, and persistence"
 });
 
 test("language changes after import without losing diary or editor state", async ({ page }) => {
+  await page.route("**/api/tmdb", async route => {
+    const request = route.request().postDataJSON() as { movies: Array<{ key: string; title: string; releaseYear?: number }> };
+    await route.fulfill({ status: 200, json: { results: request.movies.map((movie, index) => ({
+      ...movie, tmdbId: index + 1, matchedTitle: movie.title, matchedReleaseYear: movie.releaseYear,
+      genres: [{ id: 18, name: "Drama" }], status: "matched",
+    })) } });
+  });
   await page.goto("/");
   await page.getByLabel("Pilih diary.csv").setInputFiles(csvPath);
   await expect(page.getByRole("heading", { name: "Atur strukmu." })).toBeVisible();
@@ -30,11 +37,24 @@ test("language changes after import without losing diary or editor state", async
   await expect(page.getByTestId("receipt")).toContainText("ORDER #003 FOR STATE KEEPER");
   await expect(page.getByTestId("receipt")).toContainText("OCTOBER 2026");
   await expect(page.getByTestId("receipt")).toContainText("2024");
+  await expect(page.getByRole("heading", { name: "Viewing Profile" })).toBeVisible();
+  await expect(page.getByText("5 viewing sessions")).toBeVisible();
+  await expect(page.getByRole("heading", { name: "Annual Recap" })).toBeVisible();
+  await expect(page.getByLabel("Diary year")).toHaveValue("2026");
+  await expect(page.getByTestId("annual-recap-artwork")).not.toContainText("Genres available for");
+  await expect(page.getByTestId("annual-recap-artwork")).not.toContainText("Genre metadata is incomplete");
+  await expect(page.locator(".annual-recap-card .annual-recap-note").first()).toHaveText("Genres available for 4 of 4 films.");
   await page.getByRole("button", { name: "ID", exact: true }).click();
   await expect(page.getByLabel("Nama pada struk")).toHaveValue("State Keeper");
   await expect(page.getByTestId("receipt")).toContainText("ORDER #003 UNTUK STATE KEEPER");
   await expect(page.getByTestId("receipt")).toContainText("OKTOBER 2026");
   await expect(page.getByTestId("receipt")).toContainText("2024");
+  await expect(page.getByRole("heading", { name: "Profil Menonton" })).toBeVisible();
+  await expect(page.getByText("5 sesi menonton")).toBeVisible();
+  await expect(page.getByRole("heading", { name: "Rekap Tahunan" })).toBeVisible();
+  await expect(page.getByLabel("Tahun diary")).toHaveValue("2026");
+  await expect(page.locator(".annual-recap-card .annual-recap-note").first()).toHaveText("Genre tersedia untuk 4 dari 4 film.");
+  await expect(page.locator(".annual-recap-canvas")).toBeVisible();
 });
 
 test("About and FAQ are bilingual; accordion works with keyboard", async ({ page }, testInfo) => {
