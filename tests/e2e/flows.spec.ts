@@ -23,6 +23,25 @@ test.beforeEach(async ({ page }) => {
   });
 });
 
+test("Mobile receipt editor shows preview, settings, profile, then annual recap", async ({ page }, testInfo) => {
+  test.skip(testInfo.project.name !== "mobile", "This ordering applies only to the mobile layout.");
+  await page.goto("/");
+  await page.getByLabel("Pilih diary.csv").setInputFiles(csvPath);
+  await expect(page.locator(".preview-stage")).toBeVisible();
+  await expect(page.locator(".controls")).toBeVisible();
+  await expect(page.locator(".viewing-profile")).toBeVisible();
+  await expect(page.locator(".annual-recap-card")).toBeVisible();
+  const [preview, settings, profile, recap] = await Promise.all([
+    page.locator(".preview-stage").boundingBox(),
+    page.locator(".controls").boundingBox(),
+    page.locator(".viewing-profile").boundingBox(),
+    page.locator(".annual-recap-card").boundingBox(),
+  ]);
+  expect(preview?.y).toBeLessThan(settings?.y ?? 0);
+  expect(settings?.y).toBeLessThan(profile?.y ?? 0);
+  expect(profile?.y).toBeLessThan(recap?.y ?? 0);
+});
+
 test("CSV → rating and minute receipt → four papers → PNG; local data stays off the network", async ({ page }, testInfo) => {
   const errors: string[] = [];
   const outgoing: { url: string; body: string | null }[] = [];

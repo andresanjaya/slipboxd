@@ -721,7 +721,12 @@ main.shell:has(.editor) { width: auto; max-width: none; margin: 24px 32px 0; pad
   .editor { padding: 24px 18px; }
   .editor-top { display: block; }
   .editor-top > .secondary { margin-top: 18px; }
-  .editor .editor-grid { grid-template-columns: 1fr; }
+  .editor .editor-grid { display: flex; flex-direction: column; gap: 20px; }
+  .editor-preview-column { display: contents; }
+  .editor .preview-stage { order: 1; }
+  .editor .controls { order: 2; }
+  .editor .viewing-profile { order: 3; margin-top: 0; }
+  .editor .annual-recap-card { order: 4; margin-top: 0; }
   .editor .receipt-paper { width: min(calc(100% - 36px), 420px); }
   .source-card[aria-labelledby="upload-title"] { min-height: 200px; }
   .about-panel-body { padding: 14px; }
