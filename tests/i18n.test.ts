@@ -35,6 +35,8 @@ test("Viewing Profile and Annual Recap labels are present in both languages", ()
     assert.ok(dictionary.viewingProfile.incompleteMetadata);
     assert.ok(dictionary.annualRecap.emptyBody("2025"));
     assert.ok(dictionary.annualRecap.exportFailed);
+    assert.ok(dictionary.editor.releaseYear);
+    assert.ok(dictionary.editor.allReleaseYears);
   }
   assert.notEqual(dictionaries.en.annualRecap.noYearBody, dictionaries.id.annualRecap.noYearBody);
 });

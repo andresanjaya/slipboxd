@@ -71,3 +71,44 @@ test("TMDB enrichment leaves ambiguous and missing films unmatched", async () =>
   assert.equal(missing.status, "unmatched");
   assert.equal(ambiguous.runtime, undefined);
 });
+
+test("TMDB enrichment matches films with ±1 year discrepancy between Letterboxd and TMDB", async () => {
+  const calls: URL[] = [];
+  const fetcher = (async (input: string | URL | Request) => {
+    const url = new URL(String(input));
+    calls.push(url);
+    if (url.pathname === "/3/search/movie") {
+      if (url.searchParams.get("year") === "2025") return json({ results: [] });
+      return json({ results: [{ id: 999, title: "Obsession", release_date: "2026-06-26" }] });
+    }
+    return json({ title: "Obsession", release_date: "2026-06-26", runtime: 105, genres: [{ id: 53, name: "Thriller" }] });
+  }) as typeof fetch;
+  const [result] = await enrichTmdbMovies([{ key: "obsession::2025", title: "Obsession", releaseYear: 2025 }], "secret", fetcher);
+  assert.equal(result.status, "matched");
+  assert.equal(result.matchedReleaseYear, 2026);
+  assert.equal(result.runtime, 105);
+  assert.equal(calls.length, 3);
+  assert.equal(calls[0].searchParams.get("year"), "2025");
+  assert.equal(calls[1].searchParams.get("year"), null);
+});
+
+test("TMDB enrichment disambiguates multiple exact titles using vote count when ±1 year discrepancy occurs", async () => {
+  const fetcher = (async (input: string | URL | Request) => {
+    const url = new URL(String(input));
+    if (url.pathname === "/3/search/movie") {
+      return json({
+        results: [
+          { id: 1339713, title: "Obsession", release_date: "2026-05-13", vote_count: 6727, popularity: 78.6 },
+          { id: 1436161, title: "Obsession", release_date: "2025-03-28", vote_count: 1, popularity: 0.89 },
+          { id: 1502633, title: "Obsession", release_date: "2025-03-13", vote_count: 1, popularity: 0.33 },
+        ],
+      });
+    }
+    return json({ title: "Obsession", release_date: "2026-05-13", runtime: 109, genres: [{ id: 27, name: "Horror" }, { id: 53, name: "Thriller" }] });
+  }) as typeof fetch;
+  const [result] = await enrichTmdbMovies([{ key: "obsession::2025", title: "Obsession", releaseYear: 2025 }], "secret", fetcher);
+  assert.equal(result.status, "matched");
+  assert.equal(result.tmdbId, 1339713);
+  assert.equal(result.matchedReleaseYear, 2026);
+  assert.equal(result.runtime, 109);
+});

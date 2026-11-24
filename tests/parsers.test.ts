@@ -2,9 +2,10 @@ import { test } from "node:test";
 import assert from "node:assert/strict";
 import { readFile } from "node:fs/promises";
 import { strToU8, zipSync } from "fflate";
-import { calendarDate, defaultSettings, filmIdentity, ratingValue, safeFilename, selectEntries, availablePeriods, ImportError } from "../src/lib/model";
+import { calendarDate, defaultSettings, filmIdentity, ratingValue, safeFilename, selectEntries, availablePeriods, availableReleaseYears, ImportError } from "../src/lib/model";
 import { extractDiaryZip, importExportFile, MAX_DIARY_BYTES, MAX_FILE_BYTES, parseDiaryCsv } from "../src/lib/import-export";
 import { parseRss } from "../src/lib/rss";
+import { tmdbCacheKey } from "../src/lib/tmdb";
 
 const csv = await readFile(new URL("./fixtures/diary.csv", import.meta.url), "utf8");
 const xml = await readFile(new URL("./fixtures/public-rss.xml", import.meta.url), "utf8");
@@ -90,6 +91,36 @@ test("periods and sorting count the whole period before limiting rows", () => {
   assert.equal(selectEntries(many, defaultSettings).rows.length, 10);
   assert.equal(selectEntries(many, { ...defaultSettings, count: 20 }).rows.length, 20);
   assert.equal(selectEntries(many, defaultSettings).sessions, 25);
+});
+
+test("release year filter extracts available years and selects matching films", () => {
+  const entries = parseDiaryCsv(csv).entries;
+  assert.deepEqual(availableReleaseYears(entries), ["2026", "2025", "2024", "1990"]);
+  const only2026 = selectEntries(entries, { ...defaultSettings, period: "2026", releaseYear: "2026" });
+  assert.equal(only2026.rows.length, 2);
+  assert.ok(only2026.rows.every(r => r.releaseYear === 2026));
+  const only1990 = selectEntries(entries, { ...defaultSettings, releaseYear: "1990" });
+  assert.equal(only1990.rows.length, 1);
+  assert.equal(only1990.rows[0].title, "The Last Matinee");
+  assert.equal(only1990.rows[0].releaseYear, 1990);
+  const nonExistent = selectEntries(entries, { ...defaultSettings, releaseYear: "1980" });
+  assert.equal(nonExistent.rows.length, 0);
+  assert.equal(nonExistent.sessions, 0);
+
+  const tmdbMeta = new Map([
+    [tmdbCacheKey("A Film with\nTwo Lines", 2025), {
+      key: tmdbCacheKey("A Film with\nTwo Lines", 2025),
+      title: "A Film with\nTwo Lines",
+      releaseYear: 2025,
+      matchedReleaseYear: 2026,
+      genres: [],
+      status: "matched" as const,
+    }],
+  ]);
+  assert.deepEqual(availableReleaseYears(entries, tmdbMeta), ["2026", "2025", "2024", "1990"]);
+  const matchedWithTmdb = selectEntries(entries, { ...defaultSettings, releaseYear: "2026" }, tmdbMeta);
+  assert.equal(matchedWithTmdb.rows.length, 3);
+  assert.ok(matchedWithTmdb.rows.some(r => r.title === "A Film with\nTwo Lines"));
 });
 
 test("film identity handles diary rewatch paths, same-title remakes, and safe filenames", () => {

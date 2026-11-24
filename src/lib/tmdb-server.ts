@@ -4,13 +4,42 @@ const TMDB_ORIGIN = "https://api.themoviedb.org";
 const REQUEST_TIMEOUT_MS = 7_000;
 const PARALLEL_REQUESTS = 3;
 
-type SearchResult = { id?: unknown; title?: unknown; original_title?: unknown; release_date?: unknown };
+type SearchResult = {
+  id?: unknown;
+  title?: unknown;
+  original_title?: unknown;
+  release_date?: unknown;
+  popularity?: unknown;
+  vote_count?: unknown;
+};
 type DetailsResult = { title?: unknown; release_date?: unknown; runtime?: unknown; genres?: unknown; credits?: { crew?: unknown } };
 
 function releaseYear(value: unknown): number | undefined {
   if (typeof value !== "string") return;
   const match = value.match(/^(\d{4})-/);
   return match ? Number(match[1]) : undefined;
+}
+
+function voteCount(result: SearchResult): number {
+  return typeof result.vote_count === "number" && Number.isFinite(result.vote_count) ? result.vote_count : 0;
+}
+
+function popularity(result: SearchResult): number {
+  return typeof result.popularity === "number" && Number.isFinite(result.popularity) ? result.popularity : 0;
+}
+
+function pickBestCandidate(candidates: SearchResult[]): SearchResult | "ambiguous" | undefined {
+  if (!candidates || candidates.length === 0) return undefined;
+  if (candidates.length === 1) return candidates[0];
+  const sorted = [...candidates].sort((a, b) => (voteCount(b) - voteCount(a)) || (popularity(b) - popularity(a)));
+  const top = sorted[0];
+  const runnerUp = sorted[1];
+  const topVotes = voteCount(top);
+  const runnerUpVotes = voteCount(runnerUp);
+  if (topVotes >= 20 && topVotes >= Math.max(1, runnerUpVotes) * 5) {
+    return top;
+  }
+  return "ambiguous";
 }
 
 async function tmdbJson(url: URL, token: string, fetcher: typeof fetch): Promise<unknown> {
@@ -26,9 +55,29 @@ async function tmdbJson(url: URL, token: string, fetcher: typeof fetch): Promise
 function chooseMatch(query: TmdbMovieQuery, results: SearchResult[]): SearchResult | "ambiguous" | undefined {
   const normalized = normalizeMovieTitle(query.title);
   const exactTitles = results.filter(result => [result.title, result.original_title].some(title => typeof title === "string" && normalizeMovieTitle(title) === normalized));
-  const candidates = query.releaseYear === undefined ? exactTitles : exactTitles.filter(result => releaseYear(result.release_date) === query.releaseYear);
-  if (candidates.length === 1) return candidates[0];
-  if (candidates.length > 1) return "ambiguous";
+  if (query.releaseYear === undefined) {
+    return pickBestCandidate(exactTitles);
+  }
+
+  const exactYearCandidates = exactTitles.filter(result => releaseYear(result.release_date) === query.releaseYear);
+  const exactMatch = pickBestCandidate(exactYearCandidates);
+  if (exactMatch && exactMatch !== "ambiguous") {
+    const closeCandidates = exactTitles.filter(result => {
+      const yr = releaseYear(result.release_date);
+      return yr !== undefined && Math.abs(yr - query.releaseYear!) <= 1;
+    });
+    const closeMatch = pickBestCandidate(closeCandidates);
+    if (closeMatch && closeMatch !== "ambiguous" && voteCount(closeMatch) >= 100 && voteCount(closeMatch) > voteCount(exactMatch) * 10) {
+      return closeMatch;
+    }
+    return exactMatch;
+  }
+
+  const closeCandidates = exactTitles.filter(result => {
+    const yr = releaseYear(result.release_date);
+    return yr !== undefined && Math.abs(yr - query.releaseYear!) <= 1;
+  });
+  return pickBestCandidate(closeCandidates);
 }
 
 async function enrichOne(query: TmdbMovieQuery, token: string, fetcher: typeof fetch): Promise<TmdbMovieMetadata> {
@@ -41,8 +90,21 @@ async function enrichOne(query: TmdbMovieQuery, token: string, fetcher: typeof f
     searchUrl.searchParams.set("page", "1");
     if (query.releaseYear) searchUrl.searchParams.set("year", String(query.releaseYear));
     const payload = await tmdbJson(searchUrl, token, fetcher) as { results?: unknown };
-    const results = Array.isArray(payload.results) ? payload.results as SearchResult[] : [];
-    const match = chooseMatch(query, results);
+    let results = Array.isArray(payload.results) ? payload.results as SearchResult[] : [];
+    let match = chooseMatch(query, results);
+    if ((!match || match === "ambiguous") && query.releaseYear) {
+      const fallbackUrl = new URL("/3/search/movie", TMDB_ORIGIN);
+      fallbackUrl.searchParams.set("query", query.title);
+      fallbackUrl.searchParams.set("include_adult", "false");
+      fallbackUrl.searchParams.set("language", "en-US");
+      fallbackUrl.searchParams.set("page", "1");
+      const fallbackPayload = await tmdbJson(fallbackUrl, token, fetcher) as { results?: unknown };
+      const fallbackResults = Array.isArray(fallbackPayload.results) ? fallbackPayload.results as SearchResult[] : [];
+      const fallbackMatch = chooseMatch(query, fallbackResults);
+      if (fallbackMatch && fallbackMatch !== "ambiguous") {
+        match = fallbackMatch;
+      }
+    }
     if (!match) return { ...fallback, status: "unmatched" };
     if (match === "ambiguous") return { ...fallback, status: "ambiguous" };
     if (!Number.isInteger(match.id)) return { ...fallback, status: "unmatched" };

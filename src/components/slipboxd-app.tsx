@@ -1,13 +1,13 @@
 "use client";
 
 import { useEffect, useMemo, useRef, useState, type FormEvent } from "react";
-import { availablePeriods, defaultSettings, safeFilename, selectEntries, type ImportResult, type ReceiptSettings, type WatchEntry } from "@/lib/model";
+import { availablePeriods, availableReleaseYears, defaultSettings, safeFilename, selectEntries, type ImportResult, type ReceiptSettings, type WatchEntry } from "@/lib/model";
 import { useDiary } from "@/lib/diary-provider";
 import { formatMonth, formatNumber, formatRange, dictionaries, type Language } from "@/i18n";
 import { useLanguage } from "@/i18n/provider";
 import { Receipt } from "./receipt-v2";
 import { prepareReceiptAssets, receiptPng, savePng } from "@/lib/download";
-import { genreLabel, tmdbCacheKey, type TmdbMovieMetadata, type TmdbMovieQuery } from "@/lib/tmdb";
+import { genreLabel, metadataFor, tmdbCacheKey, type TmdbMovieMetadata, type TmdbMovieQuery } from "@/lib/tmdb";
 import { availableDiaryYears, buildAnnualRecap, buildViewingProfile } from "@/lib/diary-insights";
 import { RECEIPT_BACKGROUNDS, type ReceiptBackgroundId } from "@/config/receipt-backgrounds";
 import { Button } from "@/components/ui/button";
@@ -119,7 +119,7 @@ export function SlipboxdApp({ rssEnabled, tmdbEnabled }: { rssEnabled: boolean; 
       }
     })();
     return () => controller.abort();
-  }, [data, settings.period, recapYear, tmdbEnabled, metadataCache, publishMetadata]);
+  }, [data, settings.period, settings.releaseYear, recapYear, tmdbEnabled, metadataCache, publishMetadata]);
 
   function accept(result: ImportResult) {
     enrichmentRequest.current?.abort();
@@ -219,8 +219,16 @@ export function SlipboxdApp({ rssEnabled, tmdbEnabled }: { rssEnabled: boolean; 
   }
 
   const periods = data ? availablePeriods(data.entries) : null;
-  const selected = data ? selectEntries(data.entries, settings) : null;
-  const selectedPeriodEntries = useMemo(() => data?.entries.filter(entry => settings.period === "all" || entry.watchedDate.startsWith(settings.period)) ?? [], [data, settings.period]);
+  const releaseYears = useMemo(() => (data ? availableReleaseYears(data.entries, metadata) : []), [data, metadata]);
+  const selected = data ? selectEntries(data.entries, settings, metadata) : null;
+  const selectedPeriodEntries = useMemo(() => data?.entries.filter(entry => {
+    const matchesPeriod = settings.period === "all" || entry.watchedDate.startsWith(settings.period);
+    const meta = metadataFor(entry, metadata);
+    const matchesReleaseYear = !settings.releaseYear || settings.releaseYear === "all" ||
+      String(entry.releaseYear) === settings.releaseYear ||
+      (meta?.matchedReleaseYear !== undefined && String(meta.matchedReleaseYear) === settings.releaseYear);
+    return matchesPeriod && matchesReleaseYear;
+  }) ?? [], [data, settings.period, settings.releaseYear, metadata]);
   const profile = useMemo(() => buildViewingProfile(selectedPeriodEntries, metadata), [selectedPeriodEntries, metadata]);
   const recapYears = useMemo(() => availableDiaryYears(data?.entries ?? []), [data]);
   const annualRecap = useMemo(() => buildAnnualRecap(data?.entries ?? [], metadata, recapYear), [data, metadata, recapYear]);
@@ -295,6 +303,7 @@ export function SlipboxdApp({ rssEnabled, tmdbEnabled }: { rssEnabled: boolean; 
           <FieldGroup>
             <Field><FieldLabel htmlFor="receipt-name">{t.editor.name}</FieldLabel><Input id="receipt-name" maxLength={48} value={settings.name} onChange={event => change("name", event.target.value)} placeholder={t.editor.namePlaceholder}/></Field>
             <Field><FieldLabel htmlFor="period">{t.editor.period}</FieldLabel><select id="period" value={settings.period} onChange={event => change("period", event.target.value)}><option value="all">{t.editor.allData}</option><optgroup label={t.editor.years}>{periods?.years.map(year => <option key={year} value={year}>{year}</option>)}</optgroup><optgroup label={t.editor.months}>{periods?.months.map(month => <option key={month} value={month}>{formatMonth(month, t)}</option>)}</optgroup></select></Field>
+            <Field><FieldLabel htmlFor="release-year">{t.editor.releaseYear}</FieldLabel><select id="release-year" value={settings.releaseYear ?? "all"} onChange={event => change("releaseYear", event.target.value)} disabled={!releaseYears.length}><option value="all">{t.editor.allReleaseYears}</option>{releaseYears.map(year => <option key={year} value={year}>{year}</option>)}</select></Field>
             <div className="control-row"><Field><FieldLabel htmlFor="sort">{t.editor.sort}</FieldLabel><select id="sort" value={settings.sort} onChange={event => change("sort", event.target.value as ReceiptSettings["sort"])}><option value="newest">{t.editor.newest}</option><option value="oldest">{t.editor.oldest}</option><option value="rating" disabled={!rated}>{t.editor.topRated}{!rated ? ` (${t.editor.unavailable})` : ""}</option></select></Field><Field><FieldLabel htmlFor="count">{t.editor.rowCount}</FieldLabel><select id="count" value={settings.count} onChange={event => change("count", Number(event.target.value) as 10 | 20)}><option value={10}>{t.editor.rows(formatNumber(10, t))}</option><option value={20}>{t.editor.rows(formatNumber(20, t))}</option></select></Field></div>
             <Field><FieldLabel htmlFor="value-type">{t.editor.valueType}</FieldLabel><select id="value-type" value={settings.valueType} onChange={event => change("valueType", event.target.value as ReceiptSettings["valueType"])}><option value="rating">{t.editor.rating}</option><option value="minute">{t.editor.minute}</option></select></Field>
           </FieldGroup>

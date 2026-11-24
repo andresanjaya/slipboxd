@@ -26,6 +26,7 @@ export type Dictionary = {
     confirmLabel: string; confirm: string; cancel: string; confirmSwitch: string; livePreview: string;
     rowsUpper: (count: string) => string; previewHelp: string; content: string; name: string; namePlaceholder: string;
     period: string; allData: string; years: string; months: string;
+    releaseYear: string; allReleaseYears: string;
     sort: string; newest: string; oldest: string; topRated: string; unavailable: string; rowCount: string;
     rows: (count: string) => string; appearance: string; template: string; classic: string; ticket: string;
     valueType: string; minute: string; rating: string;

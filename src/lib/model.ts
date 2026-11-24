@@ -1,3 +1,5 @@
+import { metadataFor, type TmdbMovieMetadata } from "@/lib/tmdb";
+
 export type WatchEntry = {
   source: "export" | "rss";
   filmKey: string;
@@ -65,6 +67,7 @@ export type ReceiptSettings = {
   name: string;
   title: string;
   period: string;
+  releaseYear?: string;
   sort: "newest" | "oldest" | "rating";
   count: 10 | 20;
   valueType: "rating" | "minute";
@@ -72,14 +75,21 @@ export type ReceiptSettings = {
 };
 
 export const defaultSettings: ReceiptSettings = {
-  name: "", title: "My Movie Receipt", period: "all", sort: "newest",
+  name: "", title: "My Movie Receipt", period: "all", releaseYear: "all", sort: "newest",
   count: 10, valueType: "rating", paper: "paper-bg-2",
 };
 
 const compare = (a: string, b: string) => a < b ? -1 : a > b ? 1 : 0;
 
-export function selectEntries(entries: WatchEntry[], settings: ReceiptSettings) {
-  const inPeriod = entries.filter(e => settings.period === "all" || e.watchedDate.startsWith(settings.period));
+export function selectEntries(entries: WatchEntry[], settings: ReceiptSettings, metadata?: ReadonlyMap<string, TmdbMovieMetadata>) {
+  const inPeriod = entries.filter(e => {
+    const matchesPeriod = settings.period === "all" || e.watchedDate.startsWith(settings.period);
+    const meta = metadata ? metadataFor(e, metadata) : undefined;
+    const matchesReleaseYear = !settings.releaseYear || settings.releaseYear === "all" ||
+      String(e.releaseYear) === settings.releaseYear ||
+      (meta?.matchedReleaseYear !== undefined && String(meta.matchedReleaseYear) === settings.releaseYear);
+    return matchesPeriod && matchesReleaseYear;
+  });
   const ordered = [...inPeriod].sort((a, b) => {
     if (settings.sort === "rating") {
       const rating = (b.rating ?? -1) - (a.rating ?? -1);
@@ -96,6 +106,21 @@ export function availablePeriods(entries: WatchEntry[]) {
     years: [...new Set(entries.map(e => e.watchedDate.slice(0, 4)))].sort().reverse(),
     months: [...new Set(entries.map(e => e.watchedDate.slice(0, 7)))].sort().reverse(),
   };
+}
+
+export function availableReleaseYears(entries: WatchEntry[], metadata?: ReadonlyMap<string, TmdbMovieMetadata>): string[] {
+  const years = entries.flatMap(e => {
+    const list: number[] = [];
+    if (typeof e.releaseYear === "number" && Number.isInteger(e.releaseYear)) list.push(e.releaseYear);
+    if (metadata) {
+      const meta = metadataFor(e, metadata);
+      if (typeof meta?.matchedReleaseYear === "number" && Number.isInteger(meta.matchedReleaseYear)) {
+        list.push(meta.matchedReleaseYear);
+      }
+    }
+    return list;
+  }).map(String);
+  return [...new Set(years)].sort((a, b) => Number(b) - Number(a));
 }
 
 export function observedRange(entries: WatchEntry[]): string {

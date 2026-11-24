@@ -70,6 +70,11 @@ test("CSV → rating and minute receipt → four papers → PNG; local data stay
   await expect(receipt).toHaveAttribute("aria-label", /5 baris, 5 sesi.*4 film unik/);
   await page.getByLabel("Nama pada struk").fill("Film Friend");
   await page.getByLabel("Periode", { exact: true }).selectOption("2026-10");
+  await expect(page.getByLabel("Tahun rilis", { exact: true })).toBeVisible();
+  await expect(page.getByLabel("Tahun rilis", { exact: true }).locator("option")).toHaveCount(5);
+  await page.getByLabel("Tahun rilis", { exact: true }).selectOption("2026");
+  await expect(receipt).toHaveAttribute("aria-label", /1 baris, 1 sesi.*1 film unik/);
+  await page.getByLabel("Tahun rilis", { exact: true }).selectOption("all");
   await expect(page.getByText("Metadata TMDB:", { exact: false })).toContainText("2 cocok");
   await expect(receipt).toHaveAttribute("aria-label", /2 baris, 2 sesi.*2 film unik/);
   await expect(receipt).toContainText("ORDER #003 UNTUK FILM FRIEND");

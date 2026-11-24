@@ -53,7 +53,7 @@ export const Receipt = forwardRef<SVGSVGElement, Props>(function Receipt(
   { entries, settings, source, dictionary: t, metadata = new Map(), printedAt = new Date(), example, showBackground = true },
   ref,
 ) {
-  const { rows, sessions, unique } = selectEntries(entries, settings);
+  const { rows, sessions, unique } = selectEntries(entries, settings, metadata);
   const receiptTitle = settings.title || t.receipt.defaultTitle;
   const orderName = (settings.name || "GUEST").trim().toLocaleUpperCase(t.locale).slice(0, 18);
   const heading = periodHeading(settings, rows, t.locale);
@@ -96,11 +96,15 @@ export const Receipt = forwardRef<SVGSVGElement, Props>(function Receipt(
         const y = rowY;
         rowY += rowHeight;
         const runtime = metadataFor(entry, metadata)?.runtime;
+        const meta = metadataFor(entry, metadata);
+        const displayYear = (settings.releaseYear && settings.releaseYear !== "all" && meta?.matchedReleaseYear && String(meta.matchedReleaseYear) === settings.releaseYear)
+          ? meta.matchedReleaseYear
+          : (meta?.matchedReleaseYear ?? entry.releaseYear);
         return <g key={`${entry.filmKey}:${entry.watchedDate}:${index}`}>
           <text x="35" y={y} fill="#717264" fontSize="14">{String(index + 1).padStart(2, "0")}</text>
           {lines.map((line, lineIndex) => <text key={lineIndex} x="71" y={y + lineIndex * titleLineHeight} fontSize="19.33">{line}</text>)}
           <text x="405" y={y} textAnchor="end" fontSize="14">{showMinutes ? (runtime ? String(runtime) : "—") : (entry.rating === undefined ? "—" : formatNumber(entry.rating, t, 1))}</text>
-          <text x="71" y={y + (lines.length - 1) * titleLineHeight + 15.5} fill="#737367" fontSize="14">{entry.releaseYear ?? "—"}</text>
+          <text x="71" y={y + (lines.length - 1) * titleLineHeight + 15.5} fill="#737367" fontSize="14">{displayYear ?? "—"}</text>
         </g>;
       })}
       {!rows.length && <text x="220" y="300" textAnchor="middle" fontSize="16">{t.receipt.noEntries}</text>}
